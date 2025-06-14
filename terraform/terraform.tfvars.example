@@ -1,5 +1,6 @@
 # Vault Configuration
 vault_address    = "http://localhost:8200"
+vault_token      = "root"
 vault_dev_mode   = true
 vault_ui_enabled = true
 vault_log_level  = "info"
@@ -10,6 +11,7 @@ vault_replicas     = 1
 
 # Security Configuration
 enable_auto_unseal = false
+enable_vault_secrets_operator = true
 
 # Secrets Management
 create_vault_secrets = true
@@ -29,7 +31,7 @@ kyuubi_secrets = {
   spark = {
     path = "kyuubi/spark"
     data = {
-      spark_executor_memory = "12g"
+      spark_executor_memory = "4g"
       spark_executor_cores  = "2"
       spark_max_executors   = "9"
       spark_driver_memory   = "4g"
@@ -49,17 +51,16 @@ kyuubi_secrets = {
   minio = {
     path = "kyuubi/minio"
     data = {
-      minio_access_key = "minio"
-      minio_secret_key = "minio123"  # Change this!
-      minio_endpoint   = "http://minio:9000"
-      minio_bucket     = "data-lake"
+      access_key = "minioadmin"
+      secret_key = "minioadmin123"
+      endpoint = "http://minio:9000"
     }
   }
 }
 
 # FluxCD GitOps Configuration
 enable_fluxcd = true
-git_repository_url = "https://github.com/your_url/LocalDataPlatform"
+git_repository_url = "https://github.com/anhhoangdev/LocalDataPlatform"
 git_branch = "main"
 enable_image_automation = false
 
@@ -83,4 +84,3 @@ create_self_signed_issuer = true
 
 # Monitoring
 enable_monitoring = false 
-*.backup

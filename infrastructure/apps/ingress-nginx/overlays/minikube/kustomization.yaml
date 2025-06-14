@@ -8,5 +8,8 @@ resources:
 
 namespace: ingress-nginx
 
-patchesStrategicMerge:
-- patches/ingress-config.yaml 
+patches:
+- path: patches/ingress-config.yaml
+  target:
+    kind: Deployment
+    name: ingress-nginx-controller 

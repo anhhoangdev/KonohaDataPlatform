@@ -1,0 +1,13 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: vault-auth
+  namespace: kyuubi
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    role: kyuubi
+    serviceAccount: kyuubi
+    audiences:
+      - vault 

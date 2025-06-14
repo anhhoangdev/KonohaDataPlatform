@@ -2,12 +2,12 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-- base/
+  - hive-metastore-deployment.yaml
+  - vault-secret.yaml
 
-namespace: kyuubi 
+namespace: kyuubi
 
 labels:
   - pairs:
       app.kubernetes.io/name: hive-metastore
-      app.kubernetes.io/component: metastore
-      app.kubernetes.io/part-of: data-platform 
+      app.kubernetes.io/component: metastore 

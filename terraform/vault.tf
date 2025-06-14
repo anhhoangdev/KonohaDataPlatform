@@ -169,4 +169,53 @@ resource "helm_release" "vault" {
 resource "time_sleep" "wait_for_vault" {
   depends_on = [helm_release.vault]
   create_duration = "60s"
+}
+
+# Deploy Vault Secrets Operator using Helm
+resource "helm_release" "vault_secrets_operator" {
+  count = var.enable_vault_secrets_operator ? 1 : 0
+  
+  name       = "vault-secrets-operator"
+  repository = "https://helm.releases.hashicorp.com"
+  chart      = "vault-secrets-operator"
+  version    = "0.4.3"
+  namespace  = "vault-secrets-operator-system"
+  create_namespace = true
+
+  values = [
+    yamlencode({
+      defaultVaultConnection = {
+        enabled = true
+        address = "http://vault.${var.vault_namespace}:8200"
+        skipTLSVerify = true
+      }
+      
+      controller = {
+        manager = {
+          resources = {
+            limits = {
+              cpu = "500m"
+              memory = "512Mi"
+            }
+            requests = {
+              cpu = "100m"
+              memory = "128Mi"
+            }
+          }
+        }
+      }
+    })
+  ]
+
+  depends_on = [
+    helm_release.vault,
+    time_sleep.wait_for_vault
+  ]
+}
+
+# Wait for Vault Secrets Operator to be ready
+resource "time_sleep" "wait_for_vault_secrets_operator" {
+  count = var.enable_vault_secrets_operator ? 1 : 0
+  depends_on = [helm_release.vault_secrets_operator]
+  create_duration = "30s"
 } 

@@ -5,6 +5,7 @@ resources:
 - namespace.yaml
 - helm-release.yaml
 
-commonLabels:
-  app.kubernetes.io/name: ingress-nginx
-  app.kubernetes.io/part-of: ingress-nginx 
+labels:
+  - pairs:
+      app.kubernetes.io/name: ingress-nginx
+      app.kubernetes.io/part-of: ingress-nginx 

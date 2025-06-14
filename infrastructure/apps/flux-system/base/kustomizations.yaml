@@ -15,7 +15,19 @@ spec:
     kind: Deployment
     name: ingress-nginx-controller
     namespace: ingress-nginx
-  timeout: 5m
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: mariadb
+    namespace: kyuubi
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: minio
+    namespace: kyuubi
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: hive-metastore
+    namespace: kyuubi
+  timeout: 10m
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization

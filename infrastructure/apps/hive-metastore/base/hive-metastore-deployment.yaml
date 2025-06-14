@@ -2,29 +2,69 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: hive-metastore
-  namespace: metastore
+  namespace: kyuubi
   labels:
     app: hive-metastore
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
 spec:
   replicas: 1
   selector:
     matchLabels:
       app: hive-metastore
+      app.kubernetes.io/name: hive-metastore
+      app.kubernetes.io/component: metastore
   template:
     metadata:
       labels:
         app: hive-metastore
+        app.kubernetes.io/name: hive-metastore
+        app.kubernetes.io/component: metastore
     spec:
       containers:
       - name: hive-metastore
-        image: hive-metastore:3.1.3
+        image: hive-metastore:3.1.3-s3a
         env:
         - name: MYSQL_USER
-          value: "hive"
+          valueFrom:
+            secretKeyRef:
+              name: hive-metastore-vault-secret
+              key: mariadb_user
         - name: MYSQL_PASSWORD
-          value: "hivepassword"
+          valueFrom:
+            secretKeyRef:
+              name: hive-metastore-vault-secret
+              key: mariadb_password
         - name: MYSQL_DATABASE
-          value: "metastore"
+          valueFrom:
+            secretKeyRef:
+              name: hive-metastore-vault-secret
+              key: mariadb_database
+        - name: MYSQL_HOST
+          valueFrom:
+            secretKeyRef:
+              name: hive-metastore-vault-secret
+              key: mariadb_host
+        - name: MYSQL_PORT
+          valueFrom:
+            secretKeyRef:
+              name: hive-metastore-vault-secret
+              key: mariadb_port
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hive-metastore-minio-secret
+              key: access_key
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: hive-metastore-minio-secret
+              key: secret_key
+        - name: MINIO_ENDPOINT
+          valueFrom:
+            secretKeyRef:
+              name: hive-metastore-minio-secret
+              key: endpoint
         ports:
         - containerPort: 9083
         resources:
@@ -53,6 +93,8 @@ metadata:
 spec:
   selector:
     app: hive-metastore
+    app.kubernetes.io/name: hive-metastore
+    app.kubernetes.io/component: metastore
   ports:
   - port: 9083
     targetPort: 9083
