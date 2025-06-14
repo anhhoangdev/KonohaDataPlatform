@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: hive-metastore
-  namespace: kyuubi
+  namespace: metastore
   labels:
     app: hive-metastore
 spec:

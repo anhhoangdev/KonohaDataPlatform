@@ -1,0 +1,43 @@
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure
+  namespace: flux-system
+spec:
+  interval: 10m
+  path: "./infrastructure/apps"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: kyuubi-platform
+  healthChecks:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: ingress-nginx-controller
+    namespace: ingress-nginx
+  timeout: 5m
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: kyuubi-apps
+  namespace: flux-system
+spec:
+  interval: 5m
+  path: "./infrastructure/apps/kyuubi"
+  prune: true
+  sourceRef:
+    kind: GitRepository
+    name: kyuubi-platform
+  dependsOn:
+  - name: infrastructure
+  healthChecks:
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: kyuubi-dbt
+    namespace: kyuubi
+  - apiVersion: apps/v1
+    kind: Deployment
+    name: kyuubi-dbt-shared
+    namespace: kyuubi
+  timeout: 10m 
