@@ -80,28 +80,65 @@ setup_minikube() {
 }
 
 build_images() {
-    log_info "Building Docker images..."
+    log_info "Building Docker images locally..."
     
-    # Set Docker environment to use Minikube's Docker daemon
-    eval $(minikube docker-env)
+    # Define image names and tags
+    local images=(
+        "hive-metastore:3.1.3"
+        "kyuubi-server:1.10.0" 
+        "spark-engine-iceberg:1.5.0"
+    )
     
-    # Build Hive Metastore image
-    log_info "Building Hive Metastore image..."
-    docker build -t hive-metastore:3.1.3 -f docker/hive-metastore/Dockerfile .
+    local directories=(
+        "docker/hive-metastore"
+        "docker/kyuubi-server"
+        "docker/spark-engine-iceberg"
+    )
     
-    # Build Kyuubi Server image
-    log_info "Building Kyuubi Server image..."
-    docker build -t kyuubi-server:1.10.0 -f docker/kyuubi-server/Dockerfile .
+    # Check if images already exist locally
+    local build_needed=false
+    for image in "${images[@]}"; do
+        if ! docker images --format "table {{.Repository}}:{{.Tag}}" | grep -q "^${image}$"; then
+            log_info "Image ${image} not found locally, will build"
+            build_needed=true
+        else
+            log_info "Image ${image} already exists locally"
+        fi
+    done
     
-    # Build Spark Engine image
-    log_info "Building Spark Engine with Iceberg image..."
-    docker build -t spark-engine-iceberg:1.5.0 -f docker/spark-engine-iceberg/Dockerfile .
+    # Build images locally if needed
+    if [ "$build_needed" = true ] || [ "${FORCE_BUILD:-false}" = "true" ]; then
+        log_info "Building Docker images locally..."
+        
+        # Build Hive Metastore image
+        log_info "Building Hive Metastore image..."
+        (cd docker/hive-metastore && docker build -t hive-metastore:3.1.3 .)
+        
+        # Build Kyuubi Server image  
+        log_info "Building Kyuubi Server image..."
+        (cd docker/kyuubi-server && docker build -t kyuubi-server:1.10.0 .)
+        
+        # Build Spark Engine image
+        log_info "Building Spark Engine with Iceberg image..."
+        (cd docker/spark-engine-iceberg && docker build -t spark-engine-iceberg:1.5.0 .)
+        
+        log_success "All Docker images built locally"
+    else
+        log_info "All images exist locally, skipping build (use FORCE_BUILD=true to rebuild)"
+    fi
     
-    log_success "All Docker images built successfully"
+    # Load images into Minikube
+    log_info "Loading images into Minikube..."
+    for image in "${images[@]}"; do
+        log_info "Loading ${image} into Minikube..."
+        minikube image load ${image}
+    done
     
-    # List built images
-    log_info "Built images:"
-    docker images | grep -E "(hive-metastore|kyuubi-server|spark-engine-iceberg)"
+    log_success "All images loaded into Minikube"
+    
+    # List images in Minikube
+    log_info "Images available in Minikube:"
+    minikube image ls | grep -E "(hive-metastore|kyuubi-server|spark-engine-iceberg)" || echo "No custom images found in Minikube"
 }
 
 deploy_infrastructure() {
@@ -264,8 +301,12 @@ case "${1:-full}" in
     
     "build")
         log_info "Building images only..."
-        eval $(minikube docker-env)
         build_images
+        ;;
+    
+    "force-build")
+        log_info "Force building all images..."
+        FORCE_BUILD=true build_images
         ;;
     
     "deploy")
@@ -314,7 +355,8 @@ case "${1:-full}" in
         echo "Commands:"
         echo "  full         Complete setup (default) - Minikube + Build + Deploy + Port Forward"
         echo "  minikube     Setup Minikube cluster only"
-        echo "  build        Build Docker images only"
+        echo "  build        Build Docker images locally and load into Minikube (smart caching)"
+        echo "  force-build  Force rebuild all Docker images (ignores existing images)"
         echo "  deploy       Deploy applications only"
         echo "  port-forward Setup port forwarding only"
         echo "  status       Show deployment status and connection info"
@@ -325,9 +367,15 @@ case "${1:-full}" in
         echo
         echo "Examples:"
         echo "  $0           # Full setup"
-        echo "  $0 build     # Just rebuild images"
+        echo "  $0 build     # Build images (uses cache if images exist)"
+        echo "  $0 force-build # Force rebuild all images"
         echo "  $0 status    # Check status"
         echo "  $0 cleanup   # Stop everything"
+        echo
+        echo "Image Building:"
+        echo "  • Images are built locally first, then loaded into Minikube"
+        echo "  • Existing images are reused unless force-build is used"
+        echo "  • Use FORCE_BUILD=true ./run.sh build to force rebuild"
         ;;
     
     *)

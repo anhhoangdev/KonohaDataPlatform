@@ -1,0 +1,86 @@
+# Vault Configuration
+vault_address    = "http://localhost:8200"
+vault_dev_mode   = true
+vault_ui_enabled = true
+vault_log_level  = "info"
+
+# Storage Configuration (only used in non-dev mode)
+vault_storage_size = "10Gi"
+vault_replicas     = 1
+
+# Security Configuration
+enable_auto_unseal = false
+
+# Secrets Management
+create_vault_secrets = true
+
+# Kyuubi Secrets (customize these values for your environment)
+kyuubi_secrets = {
+  database = {
+    path = "kyuubi/database"
+    data = {
+      mariadb_user     = "kyuubi"
+      mariadb_password = "kyuubi123"  # Change this!
+      mariadb_database = "kyuubi_metastore"
+      mariadb_host     = "mariadb"
+      mariadb_port     = "3306"
+    }
+  }
+  spark = {
+    path = "kyuubi/spark"
+    data = {
+      spark_executor_memory = "12g"
+      spark_executor_cores  = "2"
+      spark_max_executors   = "9"
+      spark_driver_memory   = "4g"
+      spark_sql_adaptive_enabled = "true"
+      spark_sql_adaptive_coalescePartitions_enabled = "true"
+    }
+  }
+  kyuubi_server = {
+    path = "kyuubi/server"
+    data = {
+      kyuubi_user_timeout   = "PT30S"
+      kyuubi_server_timeout = "PT15M"
+      kyuubi_log_level      = "INFO"
+      kyuubi_operation_log_dir = "/tmp/kyuubi-logs"
+    }
+  }
+  minio = {
+    path = "kyuubi/minio"
+    data = {
+      minio_access_key = "minio"
+      minio_secret_key = "minio123"  # Change this!
+      minio_endpoint   = "http://minio:9000"
+      minio_bucket     = "data-lake"
+    }
+  }
+}
+
+# FluxCD GitOps Configuration
+enable_fluxcd = true
+git_repository_url = "https://github.com/your_url/LocalDataPlatform"
+git_branch = "main"
+enable_image_automation = false
+
+# Git Authentication (optional - for private repositories)
+# git_auth_secret = "git-auth"
+# git_username = "your-username"
+# git_password = "ghp_your_github_token"
+
+# Ingress Configuration
+enable_ingress = true
+enable_vault_ingress = true
+enable_kyuubi_ingress = true
+vault_ingress_host = "vault.local"
+kyuubi_ingress_host = "kyuubi.local"
+
+# TLS Configuration (optional)
+enable_tls = false
+enable_cert_manager = false
+create_self_signed_issuer = true
+# letsencrypt_email = "your-email@example.com"
+
+# Monitoring
+enable_monitoring = false 
+*.backup
