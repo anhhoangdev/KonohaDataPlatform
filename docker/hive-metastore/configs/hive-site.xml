@@ -1,0 +1,55 @@
+<?xml version="1.0"?>
+<configuration>
+    <!-- JDBC connection to MariaDB -->
+    <property>
+      <name>javax.jdo.option.ConnectionURL</name>
+      <value>jdbc:mysql://mariadb:3306/metastore?createDatabaseIfNotExist=true</value>
+    </property>
+  
+    <property>
+      <name>javax.jdo.option.ConnectionDriverName</name>
+      <value>com.mysql.cj.jdbc.Driver</value>
+    </property>
+  
+    <property>
+      <name>javax.jdo.option.ConnectionUserName</name>
+      <value>hive</value>
+    </property>
+  
+    <property>
+      <name>javax.jdo.option.ConnectionPassword</name>
+      <value>hivepassword</value>
+    </property>
+  
+    <property>
+      <name>datanucleus.schema.autoCreateAll</name>
+      <value>true</value>
+    </property>
+  
+    <property>
+      <name>hive.metastore.uris</name>
+      <value>thrift://0.0.0.0:9083</value>
+    </property>
+  
+    <!-- Optional: MinIO/S3 for Hudi tables -->
+    <property>
+      <name>fs.s3a.endpoint</name>
+      <value>http://minio:9000</value>
+    </property>
+  
+    <property>
+      <name>fs.s3a.access.key</name>
+      <value>minioadmin</value>
+    </property>
+  
+    <property>
+      <name>fs.s3a.secret.key</name>
+      <value>minioadmin</value>
+    </property>
+  
+    <property>
+      <name>fs.s3a.path.style.access</name>
+      <value>true</value>
+    </property>
+  
+</configuration> 

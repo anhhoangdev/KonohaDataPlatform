@@ -1,0 +1,88 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kyuubi-dbt
+  namespace: kyuubi
+  labels:
+    app: kyuubi-dbt
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: kyuubi-dbt
+  template:
+    metadata:
+      labels:
+        app: kyuubi-dbt
+      annotations:
+        karpenter.sh/do-not-disrupt: "true"
+    spec:
+      serviceAccountName: kyuubi-sa
+      containers:
+      - name: kyuubi-server
+        image: kyuubi-server:1.10.0
+        imagePullPolicy: Never
+        ports:
+        - containerPort: 10009
+        - containerPort: 10099
+        env:
+        - name: KYUUBI_ENGINE_SHARE_LEVEL
+          value: "USER"
+        - name: KYUUBI_SESSION_ENGINE_IDLE_TIMEOUT
+          value: "PT30S"
+        - name: KYUUBI_HA_ENABLED
+          value: "false"
+        - name: KYUUBI_FRONTEND_BIND_HOST
+          value: "0.0.0.0"
+        - name: SPARK_KUBERNETES_CONTAINER_IMAGE
+          value: "spark-engine-iceberg:1.5.0"
+        - name: SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME
+          value: "kyuubi-sa"
+        - name: SPARK_EXECUTOR_MEMORY
+          value: "4g"
+        - name: SPARK_EXECUTOR_CORES
+          value: "2"
+        - name: SPARK_DRIVER_MEMORY
+          value: "2g"
+        - name: SPARK_DRIVER_MEMORY_OVERHEAD
+          value: "1g"
+        - name: SPARK_SUBMIT_DEPLOYMODE
+          value: "cluster"
+        - name: SPARK_EVENTLOG_DIR
+          value: "/tmp/spark-events"
+        - name: SPARK_HIVE_METASTORE_URIS
+          value: "thrift://hive-metastore:9083"
+        resources:
+          requests:
+            memory: "500Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          tcpSocket:
+            port: 10009
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          tcpSocket:
+            port: 10009
+          initialDelaySeconds: 30
+          periodSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: kyuubi-dbt
+  namespace: kyuubi
+spec:
+  selector:
+    app: kyuubi-dbt
+  ports:
+  - name: thrift-binary
+    port: 10009
+    targetPort: 10009
+  - name: rest-api
+    port: 10099
+    targetPort: 10099
+  type: ClusterIP 

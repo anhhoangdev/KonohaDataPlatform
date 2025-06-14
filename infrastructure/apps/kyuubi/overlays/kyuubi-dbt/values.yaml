@@ -1,0 +1,96 @@
+replicaCount: 3
+
+image:
+  repository: kyuubi-server
+  tag: "1.10.0"
+
+podAnnotations:
+  karpenter.sh/do-not-disrupt: "true"
+
+kyuubi:
+  engine.share.level: USER
+  session.engine.idle.timeout: PT30S
+  ha:
+    enabled: true
+    addresses: kyuubi-zk-zookeeper:2181
+    namespace: kyuubi-dbt
+
+server:
+  thriftBinary:
+    enabled: true
+  rest:
+    enabled: true
+  thriftHttp:
+    enabled: true
+  mysql:
+    enabled: false
+
+spark:
+  kubernetes:
+    container:
+      image: spark-engine-iceberg:1.5.0
+    authenticate:
+      driver:
+        serviceAccountName: kyuubi-sa
+    scheduler:
+      name: yunikorn
+    driver:
+      label:
+        queue: root.dbt.internal
+    executor:
+      label:
+        queue: root.dbt.internal
+  executor:
+    memory: 4g
+    cores: 2
+  driver:
+    memory: 2g
+    memoryOverhead: 1g
+  submit:
+    deployMode: cluster
+  eventLog:
+    dir: /tmp/spark-events
+  hive:
+    metastore:
+      uris: thrift://hive-metastore:9083
+  sql:
+    catalog:
+      spark_catalog: org.apache.spark.sql.hudi.catalog.HoodieCatalog
+  ui:
+    prometheus:
+      enabled: true
+
+affinity:
+  nodeAffinity:
+    requiredDuringSchedulingIgnoredDuringExecution:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: kubernetes.io/hostname
+          operator: In
+          values:
+          - minikube
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+    - weight: 100
+      podAffinityTerm:
+        labelSelector:
+          matchExpressions:
+          - key: app.kubernetes.io/name
+            operator: In
+            values:
+            - kyuubi-dbt
+        topologyKey: kubernetes.io/hostname
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 1Gi
+  requests:
+    cpu: 200m
+    memory: 500Mi
+
+monitoring:
+  prometheus:
+    enabled: true
+serviceMonitor:
+  enabled: true 
