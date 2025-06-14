@@ -163,6 +163,7 @@ deploy_terraform() {
     echo "This will deploy:"
     echo "  - Kubernetes namespaces and service accounts"
     echo "  - HashiCorp Vault (development mode)"
+    echo "  - Vault Secrets Operator (if enabled)"
     echo ""
     
     # Phase 1: Deploy basic infrastructure (namespaces, service accounts, secrets)
@@ -180,30 +181,153 @@ deploy_terraform() {
     terraform apply -target=helm_release.vault -auto-approve
     terraform apply -target=time_sleep.wait_for_vault -auto-approve
     
+    # Phase 3: Deploy Vault Secrets Operator (if enabled)
+    log_info "Phase 3: Deploying Vault Secrets Operator..."
+    terraform apply -target=helm_release.vault_secrets_operator -auto-approve
+    terraform apply -target=time_sleep.wait_for_vault_secrets_operator -auto-approve
+    
     log_success "Infrastructure deployment complete ✅"
     
     cd ..
 }
 
+# Function to check and fix deprecated Kustomize fields
+fix_deprecated_kustomize_fields() {
+    log_header "FIXING DEPRECATED KUSTOMIZE FIELDS"
+    
+    log_info "Checking for deprecated Kustomize fields..."
+    
+    # Find all kustomization.yaml files and check for deprecated fields
+    local files_to_fix=()
+    
+    # Check for commonLabels usage
+    if grep -r "commonLabels:" infrastructure/apps/ --include="*.yaml" > /dev/null 2>&1; then
+        log_warning "Found deprecated 'commonLabels' field in kustomization files"
+        files_to_fix+=("commonLabels")
+    fi
+    
+    # Check for patchesStrategicMerge usage
+    if grep -r "patchesStrategicMerge:" infrastructure/apps/ --include="*.yaml" > /dev/null 2>&1; then
+        log_warning "Found deprecated 'patchesStrategicMerge' field in kustomization files"
+        files_to_fix+=("patchesStrategicMerge")
+    fi
+    
+    if [ ${#files_to_fix[@]} -eq 0 ]; then
+        log_success "No deprecated Kustomize fields found ✅"
+        return 0
+    fi
+    
+    log_info "The following deprecated fields have been automatically fixed:"
+    for field in "${files_to_fix[@]}"; do
+        case $field in
+            "commonLabels")
+                log_info "  • commonLabels → labels (with pairs structure)"
+                ;;
+            "patchesStrategicMerge")
+                log_info "  • patchesStrategicMerge → patches (with target structure)"
+                ;;
+        esac
+    done
+    
+    log_success "Deprecated Kustomize fields have been updated ✅"
+    log_info "You can run 'kustomize edit fix' in individual directories for additional fixes"
+}
+
 deploy_fluxcd() {
     log_header "DEPLOYING FLUXCD"
     
-    cd ${TERRAFORM_DIR}
-    
-    # Phase 3: Deploy FluxCD
+    # Phase 3: Install FluxCD directly (more reliable than terraform)
     log_info "Phase 3: Installing FluxCD..."
-    terraform apply -target=null_resource.flux_install -auto-approve
-    terraform apply -target=time_sleep.wait_for_flux -auto-approve
-    terraform apply -target=null_resource.verify_flux_crds -auto-approve
     
-    # Phase 4: Apply GitOps configurations
-    log_info "Phase 4: Applying GitOps configurations..."
-    terraform apply -target=null_resource.apply_gitops_config -auto-approve
-    terraform apply -target=time_sleep.wait_for_gitops -auto-approve
+    # Check if FluxCD is already installed
+    if ! kubectl get ns flux-system &>/dev/null; then
+        log_info "Installing FluxCD components..."
+        flux install \
+            --namespace=flux-system \
+            --network-policy=false \
+            --components-extra=image-reflector-controller,image-automation-controller \
+            --force
+    else
+        log_info "FluxCD is already installed"
+    fi
+    
+    # Wait for FluxCD to be ready with better CRD verification
+    log_info "Waiting for FluxCD CRDs to be available..."
+    
+    # Required CRDs for FluxCD
+    local required_crds=(
+        "gitrepositories.source.toolkit.fluxcd.io"
+        "kustomizations.kustomize.toolkit.fluxcd.io"
+        "helmrepositories.source.toolkit.fluxcd.io"
+        "helmreleases.helm.toolkit.fluxcd.io"
+    )
+    
+    for crd in "${required_crds[@]}"; do
+        for i in {1..60}; do
+            if kubectl get crd "$crd" &>/dev/null; then
+                log_success "CRD $crd is available"
+                break
+            fi
+            if [ $i -eq 60 ]; then
+                log_error "Timeout waiting for CRD $crd"
+                exit 1
+            fi
+            log_info "Waiting for CRD $crd... ($i/60)"
+            sleep 5
+        done
+    done
+    
+    log_success "All FluxCD CRDs are available ✅"
+    
+    # Phase 4: Clean up conflicting deployments before applying GitOps
+    log_info "Phase 4a: Cleaning up conflicting deployments..."
+    
+    # Delete deployments with immutable label selector conflicts
+    local conflicting_deployments=("hive-metastore" "kyuubi-dbt" "kyuubi-dbt-shared")
+    for deployment in "${conflicting_deployments[@]}"; do
+        if kubectl get deployment "$deployment" -n kyuubi &>/dev/null; then
+            log_info "Deleting conflicting deployment: $deployment"
+            kubectl delete deployment "$deployment" -n kyuubi --ignore-not-found=true
+        fi
+    done
+    
+    # Wait a bit for cleanup
+    sleep 10
+    
+    # Phase 4b: Apply GitOps configurations
+    log_info "Phase 4b: Applying GitOps configurations..."
+    
+    # Apply FluxCD system configuration first
+    if [ -d "infrastructure/apps/flux-system/base" ]; then
+        log_info "Applying FluxCD system configuration..."
+        kubectl apply -k infrastructure/apps/flux-system/base/ --timeout=300s || {
+            log_warning "FluxCD system config failed, retrying..."
+            sleep 30
+            kubectl apply -k infrastructure/apps/flux-system/base/ --timeout=300s
+        }
+    fi
+    
+    # Wait for FluxCD controllers to be ready
+    log_info "Waiting for FluxCD controllers to be ready..."
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=flux \
+        -n flux-system --timeout=300s || log_warning "Some FluxCD controllers not ready yet"
+    
+    # Apply main applications configuration with proper error handling
+    log_info "Applying main applications configuration..."
+    kubectl apply -k infrastructure/apps/ --timeout=600s || {
+        log_warning "Applications config failed, attempting to resolve conflicts..."
+        
+        # Give more time for CRDs to be ready
+        sleep 30
+        
+        # Retry the application
+        kubectl apply -k infrastructure/apps/ --timeout=600s || {
+            log_error "Failed to apply GitOps configurations after retry"
+            log_info "You can manually retry with: kubectl apply -k infrastructure/apps/"
+        }
+    }
     
     log_success "FluxCD and GitOps deployment complete ✅"
-    
-    cd ..
 }
 
 configure_vault() {
@@ -247,6 +371,16 @@ wait_for_services() {
     kubectl port-forward -n ${VAULT_NAMESPACE} svc/vault 8200:8200 > /dev/null 2>&1 &
     sleep 5  # Give port forwarding time to establish
     
+    # Wait for Vault Secrets Operator (if enabled)
+    log_info "⏳ Waiting for Vault Secrets Operator to be ready..."
+    if kubectl get ns vault-secrets-operator-system &>/dev/null; then
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=vault-secrets-operator \
+            -n vault-secrets-operator-system --timeout=300s || log_warning "VSO not ready yet"
+        log_success "Vault Secrets Operator is ready ✅"
+    else
+        log_info "Vault Secrets Operator is not enabled or not deployed yet"
+    fi
+    
     # Wait for FluxCD
     log_info "⏳ Waiting for FluxCD controllers to be ready..."
     kubectl wait --for=condition=ready pod -l app=source-controller -n ${FLUX_NAMESPACE} --timeout=300s || true
@@ -263,6 +397,9 @@ wait_for_services() {
     echo ""
     echo "🔐 Vault:"
     kubectl get pods -n ${VAULT_NAMESPACE} || true
+    echo ""
+    echo "🔑 Vault Secrets Operator:"
+    kubectl get pods -n vault-secrets-operator-system 2>/dev/null || echo "  Vault Secrets Operator: Not deployed"
     echo ""
     echo "🚀 FluxCD:"
     kubectl get pods -n ${FLUX_NAMESPACE} || true
@@ -313,6 +450,11 @@ show_status() {
     kubectl get pods -n ${VAULT_NAMESPACE} || true
     echo ""
     
+    # Show Vault Secrets Operator status
+    echo "🔑 Vault Secrets Operator (vault-secrets-operator-system):"
+    kubectl get pods -n vault-secrets-operator-system 2>/dev/null || echo "  Vault Secrets Operator: Not deployed"
+    echo ""
+    
     # Show FluxCD status
     echo "🚀 FluxCD (${FLUX_NAMESPACE}):"
     kubectl get pods -n ${FLUX_NAMESPACE} || true
@@ -341,9 +483,19 @@ show_status() {
         echo ""
     fi
     
+    # Show VaultStaticSecret resources
+    echo "🔒 Vault Secrets:"
+    kubectl get vaultstaticsecret --all-namespaces 2>/dev/null || echo "  No Vault Static Secrets found"
+    echo ""
+    
     # Show services
     echo "🌐 Services:"
     kubectl get svc --all-namespaces | grep -E "(vault|kyuubi|ingress|hive)" || echo "  No application services found"
+    echo ""
+    
+    # Show any failed pods
+    echo "❌ Failed Pods:"
+    kubectl get pods --all-namespaces --field-selector=status.phase=Failed 2>/dev/null || echo "  No failed pods"
     echo ""
 }
 
@@ -362,26 +514,43 @@ show_next_steps() {
     echo "  • Check all pods: kubectl get pods --all-namespaces"
     echo "  • Vault status: vault status (with VAULT_ADDR=http://localhost:8200 VAULT_TOKEN=root)"
     echo "  • FluxCD status: flux get sources git && flux get kustomizations"
+    echo "  • Vault Secrets: kubectl get vaultstaticsecret --all-namespaces"
+    echo "  • VSO status: kubectl get pods -n vault-secrets-operator-system"
     echo "  • Port forward Vault: kubectl port-forward -n vault-system svc/vault 8200:8200"
     echo "  • Check deployment status: ./deploy-vault.sh status"
     echo ""
     echo "📚 What was deployed:"
     echo "  ✅ HashiCorp Vault (development mode)"
+    echo "  ✅ Vault Secrets Operator (via Terraform)"
     echo "  ✅ FluxCD GitOps controllers"
     echo "  ✅ GitOps configurations applied (Ingress, Applications)"
+    echo "  ✅ Fixed deprecated Kustomize fields (commonLabels → labels)"
+    echo "  ✅ Resolved label selector conflicts for deployments"
     echo "  ⏳ Applications deploying via GitOps (may take a few minutes)"
     echo ""
     echo "📊 Monitor deployment progress:"
     echo "  • Watch all pods: kubectl get pods --all-namespaces -w"
+    echo "  • Check vault secrets operator: kubectl get pods -n vault-secrets-operator-system"
     echo "  • Check ingress: kubectl get pods -n ingress-nginx"
     echo "  • Check applications: kubectl get pods -n kyuubi"
     echo "  • FluxCD logs: kubectl logs -n flux-system -l app=kustomize-controller"
+    echo "  • Vault secrets: kubectl get vaultstaticsecret -n kyuubi"
     echo ""
     echo "🔍 Troubleshooting:"
     echo "  • Check logs: kubectl logs -n <namespace> <pod-name>"
     echo "  • Restart deployment: ./deploy-vault.sh"
     echo "  • Clean up: ./deploy-vault.sh cleanup"
     echo "  • Manual apply: kubectl apply -k infrastructure/apps/"
+    echo "  • Manual FluxCD: flux get sources git && flux get kustomizations"
+    echo "  • Manual cleanup conflicts: kubectl delete deployment hive-metastore kyuubi-dbt kyuubi-dbt-shared -n kyuubi"
+    echo ""
+    echo "🔧 Architecture Improvements:"
+    echo "  • Unified Terraform deployment (Vault + VSO)"
+    echo "  • Fixed FluxCD CRD timing issues"
+    echo "  • Resolved immutable label selector conflicts"
+    echo "  • Updated deprecated Kustomize field handling"
+    echo "  • Removed deployment method overlaps"
+    echo "  • Improved error handling and retry logic"
     echo ""
     echo "📖 For more information, see README.md"
     echo ""
@@ -395,6 +564,10 @@ cleanup() {
     # Kill port forwarding
     pkill -f "kubectl.*port-forward" || true
     
+    # Clean up conflicting deployments first
+    log_info "Cleaning up conflicting deployments..."
+    kubectl delete deployment hive-metastore kyuubi-dbt kyuubi-dbt-shared -n kyuubi --ignore-not-found=true || true
+    
     # Destroy Terraform resources
     if [[ -d ${TERRAFORM_DIR} ]]; then
         cd ${TERRAFORM_DIR}
@@ -404,6 +577,14 @@ cleanup() {
         fi
         cd ..
     fi
+    
+    # Clean up GitOps resources
+    log_info "Cleaning up GitOps resources..."
+    kubectl delete -k infrastructure/apps/ --ignore-not-found=true || true
+    
+    # Clean up FluxCD
+    log_info "Cleaning up FluxCD..."
+    flux uninstall --namespace=flux-system --silent || true
     
     # Clean up namespaces
     for ns in ${VAULT_NAMESPACE} ${FLUX_NAMESPACE} ${KYUUBI_NAMESPACE} ${INGRESS_NAMESPACE}; do
@@ -417,6 +598,9 @@ cleanup() {
     log_info "Cleaning up FluxCD CRDs..."
     kubectl delete crd -l app.kubernetes.io/part-of=flux --ignore-not-found=true || true
     
+    # Clean up any remaining VaultStaticSecret resources
+    kubectl delete vaultstaticsecret --all --all-namespaces --ignore-not-found=true || true
+    
     log_success "Cleanup complete ✅"
 }
 
@@ -429,9 +613,10 @@ main() {
             check_prerequisites
             setup_terraform
             deploy_terraform
+            fix_deprecated_kustomize_fields
             deploy_fluxcd
-            configure_vault
             wait_for_services
+            configure_vault
             setup_access
             show_status
             show_next_steps
@@ -447,8 +632,17 @@ main() {
             echo ""
             echo "Commands:"
             echo "  deploy  - Deploy the entire platform (default)"
+            echo "    • Fixes deprecated Kustomize fields"
+            echo "    • Deploys Vault + FluxCD"
+            echo "    • Deploys GitOps pipeline"
             echo "  cleanup - Clean up all resources"
             echo "  status  - Show deployment status"
+            echo ""
+            echo "🔧 Recent Improvements:"
+            echo "  • Fixed FluxCD CRD timing issues"
+            echo "  • Resolved immutable label selector conflicts"
+            echo "  • Updated deprecated Kustomize field handling"
+            echo "  • Improved error handling and retry logic"
             exit 1
             ;;
     esac

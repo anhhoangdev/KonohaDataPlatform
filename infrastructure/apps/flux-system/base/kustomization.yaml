@@ -6,6 +6,7 @@ resources:
 - source.yaml
 - kustomizations.yaml
 
-commonLabels:
-  app.kubernetes.io/name: flux-system
-  app.kubernetes.io/part-of: flux 
+labels:
+  - pairs:
+      app.kubernetes.io/name: flux-system
+      app.kubernetes.io/part-of: flux 

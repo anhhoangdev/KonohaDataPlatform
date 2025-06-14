@@ -41,17 +41,29 @@ spec:
         - name: SPARK_EXECUTOR_INSTANCES
           value: "1"
         - name: SPARK_EXECUTOR_MEMORY
-          value: "12g"
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-spark-secret
+              key: spark_executor_memory
         - name: SPARK_EXECUTOR_CORES
-          value: "2"
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-spark-secret
+              key: spark_executor_cores
         - name: SPARK_DRIVER_MEMORY
-          value: "5g"
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-spark-secret
+              key: spark_driver_memory
         - name: SPARK_DRIVER_MEMORY_OVERHEAD
           value: "1g"
         - name: SPARK_DYNAMICALLOCATION_ENABLED
           value: "true"
         - name: SPARK_DYNAMICALLOCATION_MAXEXECUTORS
-          value: "9"
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-spark-secret
+              key: spark_max_executors
         - name: SPARK_DYNAMICALLOCATION_MINEXECUTORS
           value: "0"
         - name: SPARK_DYNAMICALLOCATION_EXECUTORIDLETIMEOUT
@@ -62,6 +74,79 @@ spec:
           value: "/tmp/spark-events"
         - name: SPARK_HIVE_METASTORE_URIS
           value: "thrift://hive-metastore:9083"
+        - name: SPARK_SQL_ADAPTIVE_ENABLED
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-spark-secret
+              key: spark_sql_adaptive_enabled
+        - name: SPARK_SQL_ADAPTIVE_COALESCEPARTITIONS_ENABLED
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-spark-secret
+              key: spark_sql_adaptive_coalescePartitions_enabled
+
+        - name: DB_HOST
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-database-secret
+              key: mariadb_host
+        - name: DB_PORT
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-database-secret
+              key: mariadb_port
+        - name: DB_USER
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-database-secret
+              key: mariadb_user
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-database-secret
+              key: mariadb_password
+        - name: DB_NAME
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-database-secret
+              key: mariadb_database
+        # MinIO credentials from Vault
+        - name: MINIO_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-minio-secret
+              key: access_key
+        - name: MINIO_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-minio-secret
+              key: secret_key
+        # S3 configuration for Spark
+        - name: SPARK_HADOOP_FS_S3A_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-minio-secret
+              key: access_key
+        - name: SPARK_HADOOP_FS_S3A_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-minio-secret
+              key: secret_key
+        - name: SPARK_HADOOP_FS_S3A_ENDPOINT
+          value: "http://minio:9000"
+        - name: SPARK_HADOOP_FS_S3A_PATH_STYLE_ACCESS
+          value: "true"
+        - name: SPARK_HADOOP_FS_S3A_IMPL
+          value: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+        # Iceberg catalog configuration
+        - name: SPARK_SQL_CATALOG_SPARK_CATALOG
+          value: "org.apache.iceberg.spark.SparkSessionCatalog"
+        - name: SPARK_SQL_CATALOG_SPARK_CATALOG_TYPE
+          value: "hive"
+        - name: SPARK_SQL_CATALOG_SPARK_CATALOG_URI
+          value: "thrift://hive-metastore:9083"
+        - name: SPARK_SQL_EXTENSIONS
+          value: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
         resources:
           requests:
             memory: "500Mi"

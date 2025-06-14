@@ -2,14 +2,22 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 
 resources:
-# Infrastructure components
+# Infrastructure components (base layer)
 - flux-system/base
 - ingress-nginx/overlays/minikube
 
-# Application components
+# Shared Vault authentication
+- vault-auth.yaml
+
+# Database and storage components (must be deployed first)
+- mariadb
+- minio
+
+# Application components (depend on database and storage)
 - hive-metastore
 - kyuubi
 
-commonLabels:
-  app.kubernetes.io/managed-by: kustomize
-  environment: minikube 
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      environment: minikube 

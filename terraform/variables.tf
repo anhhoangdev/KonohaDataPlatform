@@ -54,6 +54,12 @@ variable "enable_auto_unseal" {
   default     = false
 }
 
+variable "enable_vault_secrets_operator" {
+  description = "Enable Vault Secrets Operator for Kubernetes secret management"
+  type        = bool
+  default     = true
+}
+
 variable "vault_log_level" {
   description = "Vault log level"
   type        = string

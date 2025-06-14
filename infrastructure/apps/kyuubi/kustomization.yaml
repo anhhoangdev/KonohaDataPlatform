@@ -4,7 +4,8 @@ kind: Kustomization
 resources:
 - base/namespace.yaml
 - base/rbac.yaml
-- overlays/kyuubi-dbt
-- overlays/kyuubi-dbt-shared
+- base/vault-secrets.yaml
+- base/kyuubi-dbt-deployment.yaml
+- base/kyuubi-dbt-shared-deployment.yaml
 
 namespace: kyuubi 

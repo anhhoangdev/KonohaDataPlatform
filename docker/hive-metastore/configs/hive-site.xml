@@ -3,7 +3,7 @@
     <!-- JDBC connection to MariaDB -->
     <property>
       <name>javax.jdo.option.ConnectionURL</name>
-      <value>jdbc:mysql://mariadb:3306/metastore?createDatabaseIfNotExist=true</value>
+      <value>jdbc:mysql://${MYSQL_HOST}:${MYSQL_PORT}/${MYSQL_DATABASE}?createDatabaseIfNotExist=true</value>
     </property>
   
     <property>
@@ -13,12 +13,12 @@
   
     <property>
       <name>javax.jdo.option.ConnectionUserName</name>
-      <value>hive</value>
+      <value>${MYSQL_USER}</value>
     </property>
   
     <property>
       <name>javax.jdo.option.ConnectionPassword</name>
-      <value>hivepassword</value>
+      <value>${MYSQL_PASSWORD}</value>
     </property>
   
     <property>
@@ -31,20 +31,25 @@
       <value>thrift://0.0.0.0:9083</value>
     </property>
   
-    <!-- Optional: MinIO/S3 for Hudi tables -->
+    <!-- MinIO/S3 configuration from environment variables -->
+    <property>
+      <name>fs.s3a.impl</name>
+      <value>org.apache.hadoop.fs.s3a.S3AFileSystem</value>
+    </property>
+    
     <property>
       <name>fs.s3a.endpoint</name>
-      <value>http://minio:9000</value>
+      <value>${MINIO_ENDPOINT}</value>
     </property>
   
     <property>
       <name>fs.s3a.access.key</name>
-      <value>minioadmin</value>
+      <value>${MINIO_ACCESS_KEY}</value>
     </property>
   
     <property>
       <name>fs.s3a.secret.key</name>
-      <value>minioadmin</value>
+      <value>${MINIO_SECRET_KEY}</value>
     </property>
   
     <property>

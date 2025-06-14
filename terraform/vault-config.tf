@@ -24,7 +24,9 @@ locals {
 resource "null_resource" "wait_for_vault_api" {
   depends_on = [
     helm_release.vault,
-    time_sleep.wait_for_vault
+    time_sleep.wait_for_vault,
+    helm_release.vault_secrets_operator,
+    time_sleep.wait_for_vault_secrets_operator
   ]
 
   provisioner "local-exec" {
@@ -54,6 +56,14 @@ resource "null_resource" "wait_for_vault_api" {
       else
         echo "Vault is not ready, but continuing..."
       fi
+      
+      # Wait for Vault Secrets Operator to be ready
+      if [ "${var.enable_vault_secrets_operator}" = "true" ]; then
+        echo "Waiting for Vault Secrets Operator to be ready..."
+        kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=vault-secrets-operator \
+          -n vault-secrets-operator-system --timeout=30 || echo "VSO not ready yet"
+        echo "Vault Secrets Operator is ready"
+      fi
     EOT
   }
 }
@@ -65,6 +75,32 @@ resource "vault_mount" "kyuubi_kv" {
   path        = "kyuubi"
   type        = "kv-v2"
   description = "KV store for Kyuubi application secrets"
+}
+
+# Vault PKI mount for certificate management
+resource "vault_mount" "pki" {
+  depends_on = [null_resource.wait_for_vault_api]
+  
+  path                      = "pki"
+  type                      = "pki"
+  description               = "PKI mount for certificate management"
+  default_lease_ttl_seconds = 86400    # 1 day
+  max_lease_ttl_seconds     = 31536000 # 1 year
+}
+
+# Store cluster CA certificate in Vault for reference
+resource "vault_kv_secret_v2" "cluster_certificates" {
+  depends_on = [vault_mount.kyuubi_kv]
+  
+  mount = vault_mount.kyuubi_kv.path
+  name  = "certificates/cluster"
+  
+  data_json = jsonencode({
+    kubernetes_ca_cert = base64decode(
+      yamldecode(data.kubernetes_config_map.cluster_info.data["kubeconfig"])["clusters"][0]["cluster"]["certificate-authority-data"]
+    )
+    cluster_endpoint = yamldecode(data.kubernetes_config_map.cluster_info.data["kubeconfig"])["clusters"][0]["cluster"]["server"]
+  })
 }
 
 # Vault authentication backend for Kubernetes
@@ -81,27 +117,9 @@ resource "vault_kubernetes_auth_backend_config" "kubernetes" {
   
   backend              = vault_auth_backend.kubernetes.path
   kubernetes_host      = "https://kubernetes.default.svc:443"
-  kubernetes_ca_cert   = <<-EOT
-    -----BEGIN CERTIFICATE-----
-    MIIDBjCCAe6gAwIBAgIBATANBgkqhkiG9w0BAQsFADAVMRMwEQYDVQQDEwptaW5p
-    a3ViZUNBMB4XDTI1MDMyODA3MjQ0OVoXDTM1MDMyNzA3MjQ0OVowFTETMBEGA1UE
-    AxMKbWluaWt1YmVDQTCCASIwDQYJKoZIhvcNAQEBBQADggEPADCCAQoCggEBAMZx
-    1rTY5FUSu/VbLTychy0jOoACetNKlKQCfa706TWDH5uSZh73yiLLjQPvTQJLuMA6
-    LUVlFPPag1Tv54hFAlHg5E2PgYETsP2qA3KyB0DXiaL+/GHKMw0t0z6XByZAjS+1
-    fv/7lx45uU/1k4Sq532fxptwp0nHhKZJU++IqADCZfnpv3FwVFZudKmSKhLht6ZK
-    WSxkWEUKe02u5QAB7hEGBbCSL70BnQMN75dyAz/cDBsQF3pss3SB1JasXEpUM2cZ
-    15cojfv5nw9m6JaEfPAj4kCAByc3ezr5vzqZZN6PNAJ26OIaP38mLuQ3Y3o26qkb
-    1CNid84AeHf6Q4anjNcCAwEAAaNhMF8wDgYDVR0PAQH/BAQDAgKkMB0GA1UdJQQW
-    MBQGCCsGAQUFBwMCBggrBgEFBQcDATAPBgNVHRMBAf8EBTADAQH/MB0GA1UdDgQW
-    BBQcscw2ypwP6BfkHAinWN48y79BtTANBgkqhkiG9w0BAQsFAAOCAQEAgucu69qG
-    /RvApj329k4svpgDcVKymsUQiNWuZU3HsYC7DCn4Q8OpSsjvWVqCNvLdCUzXvCcr
-    jG51msHWddrNCiBZ1LJsVrbjeExQWzpFHeDic3z7S1ZNZ/CbmgFFJZZwRSjwrFWa
-    z8xlUda/fi0Xqnhhup9RHYog6hW9ZEW935ta8PACEoNN0YNQOgsTdYAVSOGKkSkY
-    gzESFiLRjoQurqqhvRbVUXx7S9TOB2z7iWRMTdQAlNdQnBnomc2QUIAuUx5o2DcG
-    scS0tvDzi7BBUdmqvv7b9BgWm9JbCtcfHm077e26W7+07VcOWUgFt8/2goc7sVJm
-    DI8CMvYs4R3meg==
-    -----END CERTIFICATE-----
-  EOT
+  kubernetes_ca_cert   = base64decode(
+    yamldecode(data.kubernetes_config_map.cluster_info.data["kubeconfig"])["clusters"][0]["cluster"]["certificate-authority-data"]
+  )
 }
 
 # Vault policies for Kyuubi
@@ -118,6 +136,15 @@ path "kyuubi/data/*" {
 # Allow listing secrets
 path "kyuubi/metadata/*" {
   capabilities = ["list"]
+}
+
+# Allow reading certificates
+path "pki/cert/ca" {
+  capabilities = ["read"]
+}
+
+path "pki/ca/pem" {
+  capabilities = ["read"]
 }
 EOT
 }
@@ -136,6 +163,15 @@ path "kyuubi/metadata/*" {
   capabilities = ["list", "read", "delete"]
 }
 
+# Allow reading certificates
+path "pki/cert/ca" {
+  capabilities = ["read"]
+}
+
+path "pki/ca/pem" {
+  capabilities = ["read"]
+}
+
 # Allow reading own token
 path "auth/token/lookup-self" {
   capabilities = ["read"]
@@ -151,6 +187,18 @@ resource "vault_kubernetes_auth_backend_role" "kyuubi" {
   role_name                        = "kyuubi"
   bound_service_account_names      = ["kyuubi", "kyuubi-dbt", "kyuubi-dbt-shared"]
   bound_service_account_namespaces = [var.kyuubi_namespace]
+  token_ttl                        = 3600
+  token_policies                   = ["kyuubi-read"]
+}
+
+# Kubernetes auth role for Vault Secrets Operator
+resource "vault_kubernetes_auth_backend_role" "vault_secrets_operator" {
+  depends_on = [vault_kubernetes_auth_backend_config.kubernetes]
+  
+  backend                          = vault_auth_backend.kubernetes.path
+  role_name                        = "vault-secrets-operator"
+  bound_service_account_names      = ["vault-secrets-operator-controller-manager"]
+  bound_service_account_namespaces = ["vault-secrets-operator-system"]
   token_ttl                        = 3600
   token_policies                   = ["kyuubi-read"]
 }

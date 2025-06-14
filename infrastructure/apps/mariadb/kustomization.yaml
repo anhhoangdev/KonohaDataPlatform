@@ -4,10 +4,10 @@ kind: Kustomization
 resources:
 - base/
 
-namespace: kyuubi 
+namespace: kyuubi
 
 labels:
   - pairs:
-      app.kubernetes.io/name: hive-metastore
-      app.kubernetes.io/component: metastore
+      app.kubernetes.io/name: mariadb
+      app.kubernetes.io/component: database
       app.kubernetes.io/part-of: data-platform 

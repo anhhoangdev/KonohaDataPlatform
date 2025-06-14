@@ -144,21 +144,17 @@ build_images() {
 deploy_infrastructure() {
     log_info "Deploying infrastructure components..."
     
-    # Deploy MariaDB
-    log_info "Deploying MariaDB..."
-    kubectl apply -k infrastructure/apps/mariadb/overlays/minikube/
+    # Deploy Hive Metastore (which includes MariaDB)
+    log_info "Deploying Hive Metastore and MariaDB..."
+    kubectl apply -k infrastructure/apps/hive-metastore/
     
     # Wait for MariaDB to be ready
     log_info "Waiting for MariaDB to be ready..."
-    kubectl wait --for=condition=ready pod -l app=mariadb -n default --timeout=300s
-    
-    # Deploy Hive Metastore
-    log_info "Deploying Hive Metastore..."
-    kubectl apply -k infrastructure/apps/hive-metastore/overlays/minikube/
+    kubectl wait --for=condition=ready pod -l app=mariadb -n kyuubi --timeout=300s
     
     # Wait for Hive Metastore to be ready
     log_info "Waiting for Hive Metastore to be ready..."
-    kubectl wait --for=condition=ready pod -l app=hive-metastore -n default --timeout=300s
+    kubectl wait --for=condition=ready pod -l app=hive-metastore -n kyuubi --timeout=300s
     
     log_success "Infrastructure components deployed successfully"
 }
@@ -167,7 +163,7 @@ deploy_kyuubi() {
     log_info "Deploying Kyuubi services..."
     
     # Deploy Kyuubi
-    kubectl apply -k infrastructure/apps/kyuubi/overlays/minikube/
+    kubectl apply -k infrastructure/apps/kyuubi/
     
     # Wait for Kyuubi deployments to be ready
     log_info "Waiting for Kyuubi deployments to be ready..."

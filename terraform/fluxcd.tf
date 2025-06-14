@@ -15,11 +15,17 @@ resource "null_resource" "flux_install" {
 
   provisioner "local-exec" {
     command = <<-EOT
-      flux install \
-        --namespace=flux-system \
-        --network-policy=false \
-        --components-extra=image-reflector-controller,image-automation-controller \
-        --force
+      # Check if FluxCD is already installed
+      if ! kubectl get ns flux-system &>/dev/null; then
+        echo "Installing FluxCD..."
+        flux install \
+          --namespace=flux-system \
+          --network-policy=false \
+          --components-extra=image-reflector-controller,image-automation-controller \
+          --force
+      else
+        echo "FluxCD is already installed"
+      fi
     EOT
   }
 
@@ -38,10 +44,10 @@ resource "null_resource" "flux_install" {
 resource "time_sleep" "wait_for_flux" {
   count = var.enable_fluxcd ? 1 : 0
   depends_on = [null_resource.flux_install]
-  create_duration = "90s"  # Increased wait time for CRDs
+  create_duration = "120s"  # Increased wait time for CRDs
 }
 
-# Verify FluxCD CRDs are available
+# Verify FluxCD CRDs are available with better error handling
 resource "null_resource" "verify_flux_crds" {
   count = var.enable_fluxcd ? 1 : 0
   
@@ -51,18 +57,25 @@ resource "null_resource" "verify_flux_crds" {
     command = <<-EOT
       # Wait for FluxCD CRDs to be available
       echo "Waiting for FluxCD CRDs to be available..."
-      for i in {1..30}; do
-        if kubectl get crd gitrepositories.source.toolkit.fluxcd.io &>/dev/null && \
-           kubectl get crd kustomizations.kustomize.toolkit.fluxcd.io &>/dev/null && \
-           kubectl get crd helmrepositories.source.toolkit.fluxcd.io &>/dev/null; then
-          echo "FluxCD CRDs are available"
-          exit 0
-        fi
-        echo "Waiting for FluxCD CRDs... ($i/30)"
-        sleep 10
+      
+      # Check each required CRD
+      for crd in "gitrepositories.source.toolkit.fluxcd.io" "kustomizations.kustomize.toolkit.fluxcd.io" "helmrepositories.source.toolkit.fluxcd.io" "helmreleases.helm.toolkit.fluxcd.io"; do
+        echo "Checking CRD: $crd"
+        for i in $(seq 1 60); do
+          if kubectl get crd "$crd" >/dev/null 2>&1; then
+            echo "CRD $crd is available"
+            break
+          fi
+          if [ $i -eq 60 ]; then
+            echo "Timeout waiting for CRD $crd"
+            exit 1
+          fi
+          echo "Waiting for CRD $crd... ($i/60)"
+          sleep 5
+        done
       done
-      echo "Timeout waiting for FluxCD CRDs"
-      exit 1
+      
+      echo "All FluxCD CRDs are available"
     EOT
   }
 
@@ -88,15 +101,29 @@ resource "null_resource" "apply_gitops_config" {
       # Apply FluxCD system configuration first
       if [ -d "infrastructure/apps/flux-system/base" ]; then
         echo "Applying FluxCD system configuration..."
-        kubectl apply -k infrastructure/apps/flux-system/base/ || echo "FluxCD system config failed, continuing..."
+        kubectl apply -k infrastructure/apps/flux-system/base/ --timeout=300s || {
+          echo "FluxCD system config failed, retrying..."
+          sleep 30
+          kubectl apply -k infrastructure/apps/flux-system/base/ --timeout=300s
+        }
       fi
       
-      # Wait a bit for FluxCD system to be ready
-      sleep 30
+      # Wait for FluxCD controllers to be ready
+      echo "Waiting for FluxCD controllers to be ready..."
+      kubectl wait --for=condition=ready pod -l app.kubernetes.io/part-of=flux -n flux-system --timeout=300s || true
       
-      # Apply main applications configuration
+      # Apply main applications configuration with proper error handling
       echo "Applying main applications configuration..."
-      kubectl apply -k infrastructure/apps/ || echo "Applications config failed, continuing..."
+      kubectl apply -k infrastructure/apps/ --timeout=600s || {
+        echo "Applications config failed, attempting to resolve conflicts..."
+        
+        # First try to delete conflicting deployments
+        kubectl delete deployment hive-metastore -n kyuubi --ignore-not-found=true
+        sleep 10
+        
+        # Then reapply
+        kubectl apply -k infrastructure/apps/ --timeout=600s
+      }
       
       echo "GitOps configurations applied successfully"
     EOT
@@ -108,8 +135,8 @@ resource "null_resource" "apply_gitops_config" {
     when = destroy
     command = <<-EOT
       echo "Cleaning up GitOps configurations..."
-      kubectl delete -k infrastructure/apps/ --ignore-not-found=true || true
-      kubectl delete -k infrastructure/apps/flux-system/base/ --ignore-not-found=true || true
+      kubectl delete -k infrastructure/apps/ --ignore-not-found=true --timeout=300s || true
+      kubectl delete -k infrastructure/apps/flux-system/base/ --ignore-not-found=true --timeout=300s || true
     EOT
     working_dir = ".."
   }
@@ -125,5 +152,5 @@ resource "null_resource" "apply_gitops_config" {
 resource "time_sleep" "wait_for_gitops" {
   count = var.enable_fluxcd ? 1 : 0
   depends_on = [null_resource.apply_gitops_config]
-  create_duration = "120s"  # Wait for applications to deploy
+  create_duration = "180s"  # Wait for applications to deploy
 } 
