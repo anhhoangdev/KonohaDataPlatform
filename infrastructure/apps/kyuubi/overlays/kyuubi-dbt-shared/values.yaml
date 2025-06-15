@@ -29,7 +29,7 @@ server:
 spark:
   kubernetes:
     container:
-      image: spark-engine-iceberg:1.5.0
+      image: spark-engine-iceberg:3.5.0-1.4.2
     authenticate:
       driver:
         serviceAccountName: kyuubi-sa

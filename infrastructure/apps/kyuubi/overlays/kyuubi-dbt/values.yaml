@@ -10,6 +10,20 @@ podAnnotations:
 kyuubi:
   engine.share.level: USER
   session.engine.idle.timeout: PT30S
+  # Iceberg Configuration - These will be passed to Spark engines as --conf parameters
+  engine:
+    sparkConf:
+      spark.jars.packages: "org.apache.iceberg:iceberg-spark-runtime-3.5_2.12:1.4.2"
+      spark.sql.extensions: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+      spark.sql.catalog.spark_catalog: "org.apache.iceberg.spark.SparkSessionCatalog"
+      spark.sql.catalog.spark_catalog.type: "hive"
+      spark.sql.catalog.spark_catalog.uri: "thrift://hive-metastore:9083"
+      spark.sql.catalog.iceberg: "org.apache.iceberg.spark.SparkCatalog"
+      spark.sql.catalog.iceberg.type: "hive"
+      spark.sql.catalog.iceberg.uri: "thrift://hive-metastore:9083"
+      spark.sql.catalog.shared: "org.apache.iceberg.spark.SparkCatalog"
+      spark.sql.catalog.shared.type: "hive"
+      spark.sql.catalog.shared.uri: "thrift://hive-metastore:9083"
   ha:
     enabled: true
     addresses: kyuubi-zk-zookeeper:2181
@@ -28,7 +42,7 @@ server:
 spark:
   kubernetes:
     container:
-      image: spark-engine-iceberg:1.5.0
+      image: spark-engine-iceberg:3.5.0-1.4.2
     authenticate:
       driver:
         serviceAccountName: kyuubi-sa

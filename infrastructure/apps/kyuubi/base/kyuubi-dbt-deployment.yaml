@@ -26,16 +26,53 @@ spec:
         - containerPort: 10009
         - containerPort: 10099
         env:
+        # Kyuubi Configuration
+        - name: KYUUBI_FRONTEND_BIND_HOST
+          value: "0.0.0.0"
+        - name: KYUUBI_FRONTEND_BIND_PORT
+          value: "10009"
+        - name: KYUUBI_FRONTEND_REST_BIND_PORT
+          value: "10099"
+        - name: KYUUBI_ENGINE_TYPE
+          value: "SPARK_SQL"
         - name: KYUUBI_ENGINE_SHARE_LEVEL
           value: "USER"
         - name: KYUUBI_SESSION_ENGINE_IDLE_TIMEOUT
           value: "PT30S"
+        - name: KYUUBI_SESSION_ENGINE_CHECK_INTERVAL
+          value: "PT5S"
         - name: KYUUBI_HA_ENABLED
           value: "false"
-        - name: KYUUBI_FRONTEND_BIND_HOST
-          value: "0.0.0.0"
-        - name: SPARK_KUBERNETES_CONTAINER_IMAGE
-          value: "spark-engine-iceberg:1.5.0"
+        
+        # Iceberg Configuration - Direct Spark configuration
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_EXTENSIONS
+          value: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG
+          value: "org.apache.iceberg.spark.SparkCatalog"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_TYPE
+          value: "hive"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_URI
+          value: "thrift://hive-metastore:9083"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_WAREHOUSE
+          value: "s3a://warehouse/"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG
+          value: "org.apache.iceberg.spark.SparkCatalog"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_TYPE
+          value: "hive"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_URI
+          value: "thrift://hive-metastore:9083"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_WAREHOUSE
+          value: "s3a://warehouse/"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED
+          value: "org.apache.iceberg.spark.SparkCatalog"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED_TYPE
+          value: "hive"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED_URI
+          value: "thrift://hive-metastore:9083"
+        
+        # Spark Kubernetes Configuration
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_CONTAINER_IMAGE
+          value: "spark-engine-iceberg:3.5.0-1.4.2"
         - name: SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME
           value: "kyuubi-sa"
         - name: SPARK_EXECUTOR_MEMORY
@@ -71,6 +108,18 @@ spec:
             secretKeyRef:
               name: kyuubi-spark-secret
               key: spark_sql_adaptive_coalescePartitions_enabled
+        - name: SPARK_SQL_CATALOG_ICEBERG
+          value: "org.apache.iceberg.spark.SparkCatalog"
+        - name: SPARK_SQL_CATALOG_ICEBERG_TYPE
+          value: "hive"
+        - name: SPARK_SQL_CATALOG_ICEBERG_URI
+          value: "thrift://hive-metastore:9083"
+        - name: SPARK_SQL_CATALOG_SHARED
+          value: "org.apache.iceberg.spark.SparkCatalog"
+        - name: SPARK_SQL_CATALOG_SHARED_TYPE
+          value: "hive"
+        - name: SPARK_SQL_CATALOG_SHARED_URI
+          value: "thrift://hive-metastore:9083"
           
         - name: DB_HOST
           valueFrom:
@@ -125,15 +174,7 @@ spec:
           value: "true"
         - name: SPARK_HADOOP_FS_S3A_IMPL
           value: "org.apache.hadoop.fs.s3a.S3AFileSystem"
-        # Iceberg catalog configuration
-        - name: SPARK_SQL_CATALOG_SPARK_CATALOG
-          value: "org.apache.iceberg.spark.SparkSessionCatalog"
-        - name: SPARK_SQL_CATALOG_SPARK_CATALOG_TYPE
-          value: "hive"
-        - name: SPARK_SQL_CATALOG_SPARK_CATALOG_URI
-          value: "thrift://hive-metastore:9083"
-        - name: SPARK_SQL_EXTENSIONS
-          value: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
+
         resources:
           requests:
             memory: "500Mi"

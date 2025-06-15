@@ -21,10 +21,33 @@ kyuubi.frontend.thrift.binary.bind.host=0.0.0.0
 kyuubi.frontend.rest.bind.host=0.0.0.0
 
 # Spark Configuration
-spark.kubernetes.container.image=${SPARK_KUBERNETES_CONTAINER_IMAGE:-spark-engine-iceberg:1.5.0}
+spark.kubernetes.container.image=${SPARK_KUBERNETES_CONTAINER_IMAGE:-spark-engine-iceberg:3.5.0-1.4.2}
 spark.kubernetes.authenticate.driver.serviceAccountName=${SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME:-kyuubi-sa}
 spark.kubernetes.file.upload.path=/tmp
 spark.kubernetes.namespace=kyuubi
+
+# CRITICAL: Iceberg SQL Extensions (this enables Iceberg data source)
+spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog
+spark.sql.catalog.spark_catalog.type=hive
+spark.sql.catalog.spark_catalog.uri=thrift://hive-metastore:9083
+spark.sql.catalog.spark_catalog.warehouse=s3a://warehouse/
+spark.sql.catalog.iceberg=org.apache.iceberg.spark.SparkCatalog
+spark.sql.catalog.iceberg.type=hive
+spark.sql.catalog.iceberg.uri=thrift://hive-metastore:9083
+spark.sql.catalog.iceberg.warehouse=s3a://warehouse/
+
+# S3/MinIO Configuration for Hadoop/Spark
+spark.hadoop.fs.s3a.endpoint=http://minio:9000
+spark.hadoop.fs.s3a.access.key=${MINIO_ACCESS_KEY:-minioadmin}
+spark.hadoop.fs.s3a.secret.key=${MINIO_SECRET_KEY:-minioadmin}
+spark.hadoop.fs.s3a.path.style.access=true
+spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+spark.hadoop.fs.s3a.connection.ssl.enabled=false
+spark.hadoop.fs.s3a.attempts.maximum=3
+spark.hadoop.fs.s3a.connection.establish.timeout=5000
+spark.hadoop.fs.s3a.connection.timeout=10000
+
 spark.executor.memory=${SPARK_EXECUTOR_MEMORY:-4g}
 spark.executor.cores=${SPARK_EXECUTOR_CORES:-2}
 spark.driver.memory=${SPARK_DRIVER_MEMORY:-2g}
