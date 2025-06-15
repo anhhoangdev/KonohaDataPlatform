@@ -16,18 +16,21 @@ RUN apt-get update && apt-get install -y \
     default-mysql-client \
     gettext-base
 
-# 📥 Download and upgrade Hadoop to 3.3.4 to fix NoSuchMethodError
-RUN wget https://archive.apache.org/dist/hadoop/common/hadoop-${HADOOP_VERSION}/hadoop-${HADOOP_VERSION}.tar.gz && \
-    tar -xzf hadoop-${HADOOP_VERSION}.tar.gz && \
-    rm -f /opt/hive/lib/hadoop-*.jar && \
-    cp hadoop-${HADOOP_VERSION}/share/hadoop/common/lib/hadoop-*.jar /opt/hive/lib/ && \
-    cp hadoop-${HADOOP_VERSION}/share/hadoop/hdfs/lib/hadoop-*.jar /opt/hive/lib/ && \
-    rm -f hadoop-${HADOOP_VERSION}.tar.gz && \
-    rm -rf hadoop-${HADOOP_VERSION}
-
+# 📥 Download specific Hadoop JARs to fix NoSuchMethodError and missing classes
+RUN rm -f /opt/hive/lib/hadoop-*.jar && \
+    # Core Hadoop JARs
+    curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-common/${HADOOP_VERSION}/hadoop-common-${HADOOP_VERSION}.jar -o /opt/hive/lib/hadoop-common-${HADOOP_VERSION}.jar && \
+    curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-hdfs-client/${HADOOP_VERSION}/hadoop-hdfs-client-${HADOOP_VERSION}.jar -o /opt/hive/lib/hadoop-hdfs-client-${HADOOP_VERSION}.jar && \
+    curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-hdfs/${HADOOP_VERSION}/hadoop-hdfs-${HADOOP_VERSION}.jar -o /opt/hive/lib/hadoop-hdfs-${HADOOP_VERSION}.jar && \
+    curl -L https://repo1.maven.org/maven2/org/apache/hadoop/hadoop-auth/${HADOOP_VERSION}/hadoop-auth-${HADOOP_VERSION}.jar -o /opt/hive/lib/hadoop-auth-${HADOOP_VERSION}.jar
+    
+# 📥 Download the correct hadoop-shaded-guava from hadoop-thirdparty
+RUN curl -L https://repo1.maven.org/maven2/org/apache/hadoop/thirdparty/hadoop-shaded-guava/1.3.0/hadoop-shaded-guava-1.3.0.jar \
+-o /opt/hive/lib/hadoop-shaded-guava-1.3.0.jar
 
 # 🧹 Remove SLF4J duplicate bindings to avoid logging conflicts
-RUN rm -f /opt/hive/lib/slf4j-log4j12-*.jar
+RUN rm -f /opt/hive/lib/slf4j-log4j12-*.jar && \
+    rm -f /opt/hadoop/share/hadoop/common/lib/slf4j-log4j12-*.jar
 
 # 📥 Download MySQL JDBC driver
 RUN curl -L -A "Mozilla/5.0" https://repo1.maven.org/maven2/com/mysql/mysql-connector-j/8.0.33/mysql-connector-j-8.0.33.jar -o /opt/hive/lib/mysql-connector-j-8.0.33.jar

@@ -21,7 +21,7 @@ kyuubi.frontend.thrift.binary.bind.host=0.0.0.0
 kyuubi.frontend.rest.bind.host=0.0.0.0
 
 # Spark Configuration
-spark.kubernetes.container.image=${SPARK_KUBERNETES_CONTAINER_IMAGE:-spark-engine-iceberg:1.5.0}
+spark.kubernetes.container.image=${SPARK_KUBERNETES_CONTAINER_IMAGE:-spark-engine-iceberg:3.5.0-1.4.2}
 spark.kubernetes.authenticate.driver.serviceAccountName=${SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME:-kyuubi-sa}
 spark.kubernetes.file.upload.path=/tmp
 spark.kubernetes.namespace=kyuubi
