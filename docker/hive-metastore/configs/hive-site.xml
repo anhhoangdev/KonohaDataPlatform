@@ -43,6 +43,12 @@
       <value>thrift://hive-metastore:9083</value>
     </property>
 
+    <!-- Warehouse directory - where table data is stored -->
+    <property>
+      <name>hive.metastore.warehouse.dir</name>
+      <value>s3a://warehouse/</value>
+    </property>
+
     <!-- MinIO/S3 configuration from environment variables -->
     <property>
       <name>fs.s3a.impl</name>
