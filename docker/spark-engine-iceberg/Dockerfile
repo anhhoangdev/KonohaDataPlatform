@@ -15,7 +15,7 @@ RUN curl -L https://repo1.maven.org/maven2/org/apache/iceberg/iceberg-spark-runt
 
 # Add Kyuubi Spark SQL Engine
 RUN mkdir -p /opt/kyuubi/externals/engines/spark && \
-    curl -L https://repo1.maven.org/maven2/org/apache/kyuubi/kyuubi-spark-sql-engine_2.13/1.10.0/kyuubi-spark-sql-engine_2.13-1.10.0.jar \
+    curl -L https://repo1.maven.org/maven2/org/apache/kyuubi/kyuubi-spark-sql-engine_2.12/1.10.0/kyuubi-spark-sql-engine_2.12-1.10.0.jar \
      -o /opt/kyuubi/externals/engines/spark/kyuubi-spark-sql-engine.jar
 
 # Verify JARs are present

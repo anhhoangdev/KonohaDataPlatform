@@ -59,6 +59,8 @@ spec:
           value: "hive"
         - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_URI
           value: "thrift://hive-metastore:9083"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_WAREHOUSE
+          value: "s3a://warehouse/"
         - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED
           value: "org.apache.iceberg.spark.SparkCatalog"
         - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED_TYPE

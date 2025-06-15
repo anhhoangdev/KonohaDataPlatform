@@ -25,6 +25,17 @@ spark.kubernetes.container.image=${SPARK_KUBERNETES_CONTAINER_IMAGE:-spark-engin
 spark.kubernetes.authenticate.driver.serviceAccountName=${SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME:-kyuubi-sa}
 spark.kubernetes.file.upload.path=/tmp
 spark.kubernetes.namespace=kyuubi
+
+# CRITICAL: Iceberg SQL Extensions (this enables Iceberg data source)
+spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog
+spark.sql.catalog.spark_catalog.type=hive
+spark.sql.catalog.spark_catalog.uri=thrift://hive-metastore:9083
+spark.sql.catalog.iceberg=org.apache.iceberg.spark.SparkCatalog
+spark.sql.catalog.iceberg.type=hive
+spark.sql.catalog.iceberg.uri=thrift://hive-metastore:9083
+spark.sql.catalog.iceberg.warehouse=s3a://warehouse/
+
 spark.executor.memory=${SPARK_EXECUTOR_MEMORY:-4g}
 spark.executor.cores=${SPARK_EXECUTOR_CORES:-2}
 spark.driver.memory=${SPARK_DRIVER_MEMORY:-2g}
