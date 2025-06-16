@@ -1,6 +1,20 @@
 # LocalDataPlatform
 
 A comprehensive data platform built on Kubernetes with HashiCorp Vault for secrets management, FluxCD for GitOps, and support for Kyuubi, Hive Metastore, and other data tools.
+## Table of Contents
+
+- [Architecture](#-architecture)
+- [Prerequisites](#-prerequisites)
+- [Quick Start](#-quick-start-end-to-end-deployment)
+- [Project Structure](#-project-structure)
+- [Configuration](#-configuration)
+- [Management Commands](docs/management-commands.md)
+- [Troubleshooting](docs/troubleshooting.md)
+- [Security Notes](#-security-notes)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Support](#-support)
+
 
 ## 🏗️ Architecture
 
@@ -216,111 +230,9 @@ NGINX Ingress Controller provides external access:
 echo "$(minikube ip) vault.local kyuubi.local" | sudo tee -a /etc/hosts
 ```
 
-## 🛠️ Management Commands
+For day-to-day administration, see [Management Commands](docs/management-commands.md).
+If you run into issues, check the [Troubleshooting guide](docs/troubleshooting.md).
 
-### Vault Operations
-
-```bash
-# Access Vault CLI
-export VAULT_ADDR="http://localhost:8200"
-export VAULT_TOKEN="root"
-
-# List secrets
-vault kv list kyuubi/
-
-# Read a secret
-vault kv get kyuubi/database
-
-# Create/update a secret
-vault kv put kyuubi/custom key1=value1 key2=value2
-```
-
-### FluxCD Operations
-
-```bash
-# Check GitOps status
-flux get sources git
-flux get kustomizations
-
-# Force reconciliation
-flux reconcile source git flux-system
-flux reconcile kustomization apps
-
-# Suspend/resume GitOps
-flux suspend kustomization apps
-flux resume kustomization apps
-```
-
-### Application Management
-
-```bash
-# Deploy Kyuubi
-cd infrastructure/apps/kyuubi
-./run.sh
-
-# Deploy Hive Metastore
-cd infrastructure/apps/hive-metastore
-./run.sh
-
-# Check application status
-kubectl get pods -n kyuubi
-kubectl get pods -n hive-metastore
-```
-
-## 🔍 Troubleshooting
-
-### Common Issues
-
-1. **Minikube not starting**
-   ```bash
-   minikube delete
-   minikube start --driver=docker --cpus=4 --memory=8192
-   ```
-
-2. **Vault token errors**
-   ```bash
-   # Ensure token is set
-   export TF_VAR_vault_token="root"
-   # Or check terraform.tfvars has vault_token = "root"
-   ```
-
-3. **FluxCD not syncing**
-   ```bash
-   # Check FluxCD status
-   flux check
-   flux get sources git
-   
-   # Force reconciliation
-   flux reconcile source git flux-system
-   ```
-
-4. **Pods not starting**
-   ```bash
-   # Check pod logs
-   kubectl logs -n <namespace> <pod-name>
-   
-   # Check events
-   kubectl get events -n <namespace> --sort-by='.lastTimestamp'
-   ```
-
-### Useful Commands
-
-```bash
-# Get all resources
-kubectl get all --all-namespaces
-
-# Port forward services
-kubectl port-forward -n vault-system svc/vault 8200:8200
-kubectl port-forward -n kyuubi svc/kyuubi 10009:10009
-
-# Check resource usage
-kubectl top nodes
-kubectl top pods --all-namespaces
-
-# Clean up
-./deploy-vault.sh cleanup
-minikube delete
-```
 
 ## 🔒 Security Notes
 
@@ -350,5 +262,5 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 
 For issues and questions:
 - Create an issue in this repository
-- Check the troubleshooting section above
+- Check the [Troubleshooting guide](docs/troubleshooting.md)
 - Review Kubernetes and Vault documentation 
