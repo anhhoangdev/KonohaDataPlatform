@@ -1,5 +1,4 @@
 .terraform
-.terraform.lock.hcl
 terraform.tfvars
 .DS_Store
 .idea
@@ -10,12 +9,6 @@ terraform.tfvars
 .env.test.local
 .tfstate
 .tfstate.backup
-.terraform.lock.hcl
-.terraform.lock.hcl.backup
-.terraform.lock.hcl.backup.backup
-.terraform.lock.hcl.backup.backup.backup
-.terraform.lock.hcl.backup.backup.backup.backup
-.terraform.lock.hcl.backup.backup.backup.backup.backup
 # Local .terraform directories
 **/.terraform/*
 
@@ -52,7 +45,7 @@ override.tf.json
 terraform.rc
 
 # Ignore terraform locks
-.terraform.lock.hcl
+.terraform.lock.hcl*
 
 # Ignore terragrunt cache
 .terragrunt-cache
