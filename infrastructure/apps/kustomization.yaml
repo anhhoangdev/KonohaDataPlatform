@@ -17,6 +17,9 @@ resources:
 - hive-metastore
 - kyuubi
 
+# Orchestration layer (depends on kyuubi for DBT service)
+- airflow
+
 labels:
   - pairs:
       app.kubernetes.io/managed-by: kustomize

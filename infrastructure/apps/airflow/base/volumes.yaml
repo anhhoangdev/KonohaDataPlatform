@@ -1,0 +1,79 @@
+---
+# PersistentVolume for DAG storage
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: airflow-dag-pv
+  labels:
+    app.kubernetes.io/name: airflow
+    app.kubernetes.io/component: dag-storage
+    app.kubernetes.io/part-of: data-platform
+spec:
+  capacity:
+    storage: 10Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: /hosthome/anhhoangdev/Documents/LocalDataPlatform/dag
+    type: DirectoryOrCreate
+
+---
+# PersistentVolumeClaim for DAG storage  
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: airflow-dag-pvc
+  labels:
+    app.kubernetes.io/name: airflow
+    app.kubernetes.io/component: dag-storage
+    app.kubernetes.io/part-of: data-platform
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 10Gi
+  storageClassName: local-storage
+  volumeName: airflow-dag-pv
+
+---
+# PersistentVolume for DBT projects
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: dbt-projects-pv
+  labels:
+    app.kubernetes.io/name: dbt
+    app.kubernetes.io/component: project-storage
+    app.kubernetes.io/part-of: data-platform
+spec:
+  capacity:
+    storage: 5Gi
+  accessModes:
+    - ReadWriteMany
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: local-storage
+  hostPath:
+    path: /hosthome/anhhoangdev/Documents/LocalDataPlatform/dbt
+    type: DirectoryOrCreate
+
+---
+# PersistentVolumeClaim for DBT projects
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: dbt-projects-pvc
+  labels:
+    app.kubernetes.io/name: dbt
+    app.kubernetes.io/component: project-storage
+    app.kubernetes.io/part-of: data-platform
+spec:
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: 5Gi
+  storageClassName: local-storage
+  volumeName: dbt-projects-pv 

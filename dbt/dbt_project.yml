@@ -1,0 +1,32 @@
+name: 'analytics'
+version: '1.0.0'
+config-version: 2
+
+# This setting configures which "profile" dbt uses for this project.
+profile: 'analytics'
+
+# These configurations specify where dbt should look for different types of files.
+model-paths: ["models"]
+analysis-paths: ["analyses"]
+test-paths: ["tests"]
+seed-paths: ["seeds"]
+macro-paths: ["macros"]
+snapshot-paths: ["snapshots"]
+
+clean-targets:
+  - "target"
+  - "dbt_packages"
+
+# Project-level variables (can be overridden at runtime)
+vars:
+  # Default warehouse configuration
+  warehouse_path: "s3a://warehouse"
+  environment: "dev"
+  
+  # Feature flags
+  enable_profiling: true
+  enable_data_quality_checks: false
+  sample_size: 1000
+
+# Only keep project-wide settings here
+# Individual model configuration is now handled at model level

@@ -1,0 +1,205 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-scheduler
+  namespace: airflow
+  labels:
+    app: airflow-scheduler
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-scheduler
+  template:
+    metadata:
+      labels:
+        app: airflow-scheduler
+    spec:
+      serviceAccountName: airflow-sa
+      initContainers:
+      - name: copy-dags
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Copying DAG files from ConfigMap to shared volume..."
+          # Create target directory
+          mkdir -p /shared-dags
+          # Copy each file individually to resolve symlinks
+          for file in /configmap-dags/*; do
+            if [ -f "$file" ] && [ "$(basename "$file")" != "README.md" ]; then
+              echo "Copying $(basename "$file")..."
+              cat "$file" > "/shared-dags/$(basename "$file")"
+            fi
+          done
+          echo "Files in target directory:"
+          ls -la /shared-dags/
+          echo "DAG files copied successfully"
+        volumeMounts:
+        - name: dag-configmap
+          mountPath: /configmap-dags
+        - name: dag-repo
+          mountPath: /shared-dags
+      containers:
+      - name: airflow-scheduler
+        image: apache/airflow:2.8.2-python3.11
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow:airflow@airflow-postgresql:5432/airflow"
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "KubernetesExecutor"
+        - name: AIRFLOW__KUBERNETES__NAMESPACE
+          value: "airflow"
+        - name: AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY
+          value: "apache/airflow"
+        - name: AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG
+          value: "2.8.2-python3.11"
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: "/opt/airflow/dags"
+        - name: AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL
+          value: "30"
+        - name: AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT
+          value: "120"
+        - name: AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION
+          value: "false"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__POD_TEMPLATE_FILE
+          value: "/opt/airflow/pod_template.yaml"
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
+          value: "airflow"
+        command:
+        - airflow
+        - scheduler
+        volumeMounts:
+        - name: dag-repo
+          mountPath: /opt/airflow/dags
+        - name: pod-template
+          mountPath: /opt/airflow/pod_template.yaml
+          subPath: pod_template.yaml
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          exec:
+            command:
+            - pgrep
+            - -f
+            - "airflow scheduler"
+          initialDelaySeconds: 60
+          periodSeconds: 30
+      volumes:
+      - name: dag-configmap
+        configMap:
+          name: airflow-dags
+          defaultMode: 0644
+      - name: dag-repo
+        emptyDir: {}
+      - name: pod-template
+        configMap:
+          name: airflow-pod-template
+---
+# Pod template that ensures task pods get the correct environment variables and DAG files
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-pod-template
+  namespace: airflow
+data:
+  pod_template.yaml: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: dummy-name
+      namespace: airflow
+    spec:
+      serviceAccountName: airflow-sa
+      initContainers:
+      - name: copy-dags
+        image: busybox:1.35
+        command:
+        - sh
+        - -c
+        - |
+          echo "Copying DAG files from ConfigMap to shared volume..."
+          # Create target directory
+          mkdir -p /shared-dags
+          # Copy each file individually to resolve symlinks
+          for file in /configmap-dags/*; do
+            if [ -f "$file" ] && [ "$(basename "$file")" != "README.md" ]; then
+              echo "Copying $(basename "$file")..."
+              cat "$file" > "/shared-dags/$(basename "$file")"
+            fi
+          done
+          echo "Files in target directory:"
+          ls -la /shared-dags/
+          echo "DAG files copied successfully"
+        volumeMounts:
+        - name: dag-configmap
+          mountPath: /configmap-dags
+        - name: dag-repo
+          mountPath: /shared-dags
+      containers:
+      - name: base
+        image: apache/airflow:2.8.2-python3.11
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow:airflow@airflow-postgresql:5432/airflow"
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "KubernetesExecutor"
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: "/opt/airflow/dags"
+        - name: AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT
+          value: "120"
+        volumeMounts:
+        - name: dag-repo
+          mountPath: /opt/airflow/dags
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      volumes:
+      - name: dag-configmap
+        configMap:
+          name: airflow-dags
+          defaultMode: 0644
+      - name: dag-repo
+        emptyDir: {}
+      restartPolicy: Never
+---
+# ConfigMap to store DAG files that can be shared between scheduler and task pods
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-dags
+  namespace: airflow
+data:
+  # Placeholder - we'll add actual DAG files here
+  README.md: |
+    This ConfigMap will contain the DAG files.
+    Use kubectl create configmap to add the actual DAG files.
+---
+# Remove the old ConfigMaps
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-config
+  namespace: airflow
+data: {}
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: airflow-env-config
+  namespace: airflow
+data: {} 

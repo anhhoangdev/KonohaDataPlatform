@@ -1,0 +1,14 @@
+analytics:
+  target: dev
+  outputs:
+    dev:
+      type: spark
+      method: thrift
+      host: kyuubi-dbt.kyuubi.svc.cluster.local
+      port: 10009
+      user: admin
+      schema: default
+      auth: NONE
+      connect_retries: 0
+      connect_timeout: 10
+      retry_all: true 

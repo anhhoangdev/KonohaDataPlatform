@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: airflow
+  labels:
+    name: airflow
+    app.kubernetes.io/name: airflow
+    app.kubernetes.io/managed-by: kustomize 

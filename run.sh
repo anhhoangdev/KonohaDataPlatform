@@ -17,8 +17,8 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Configuration
-MINIKUBE_CPUS=12
-MINIKUBE_MEMORY=24576
+MINIKUBE_CPUS=16
+MINIKUBE_MEMORY=32768
 MINIKUBE_DISK=50g
 KYUUBI_NAMESPACE=kyuubi
 
@@ -69,9 +69,13 @@ setup_minikube() {
         --cpus=${MINIKUBE_CPUS} \
         --memory=${MINIKUBE_MEMORY} \
         --disk-size=${MINIKUBE_DISK} \
-        --driver=docker
-    
-    # Enable required addons
+        --driver=docker \
+        --mount \
+        --mount-type=sshfs \
+        --mount-string="$HOME/Documents/LocalDataPlatform/dag:/hosthome/anhhoangdev/Documents/LocalDataPlatform/dag" \
+        --mount-string="$HOME/Documents/LocalDataPlatform/dbt:/hosthome/anhhoangdev/Documents/LocalDataPlatform/dbt"
+        
+        # Enable required addons
     log_info "Enabling Minikube addons..."
     minikube addons enable ingress
     minikube addons enable metrics-server
@@ -87,12 +91,14 @@ build_images() {
         "hive-metastore:3.1.3"
         "kyuubi-server:1.10.0" 
         "spark-engine-iceberg:1.5.0"
+        "dbt-spark:latest"
     )
     
     local directories=(
         "docker/hive-metastore"
         "docker/kyuubi-server"
         "docker/spark-engine-iceberg"
+        "docker/dbt-spark"
     )
     
     # Check if images already exist locally
