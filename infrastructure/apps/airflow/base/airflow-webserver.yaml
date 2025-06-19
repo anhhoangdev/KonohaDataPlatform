@@ -1,0 +1,98 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-webserver
+  namespace: airflow
+  labels:
+    app: airflow-webserver
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-webserver
+  template:
+    metadata:
+      labels:
+        app: airflow-webserver
+    spec:
+      serviceAccountName: airflow-sa
+      initContainers:
+      - name: airflow-db-init
+        image: apache/airflow:2.8.2-python3.11
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow:airflow@airflow-postgresql:5432/airflow"
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "KubernetesExecutor"
+        - name: AIRFLOW__KUBERNETES__NAMESPACE
+          value: "airflow"
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+        command:
+        - airflow
+        - db
+        - init
+      containers:
+      - name: airflow-webserver
+        image: apache/airflow:2.8.2-python3.11
+        ports:
+        - containerPort: 8080
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow:airflow@airflow-postgresql:5432/airflow"
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "KubernetesExecutor"
+        - name: AIRFLOW__KUBERNETES__NAMESPACE
+          value: "airflow"
+        - name: AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY
+          value: "apache/airflow"
+        - name: AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG
+          value: "2.8.2-python3.11"
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+        - name: AIRFLOW__CORE__DAGS_FOLDER
+          value: "/opt/airflow/dags"
+        - name: AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL
+          value: "30"
+        command:
+        - airflow
+        - webserver
+        volumeMounts:
+        - name: dag-repo
+          mountPath: /opt/airflow/dags
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "200m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 60
+          periodSeconds: 30
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+      volumes:
+      - name: dag-repo
+        emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: airflow-webserver
+  namespace: airflow
+spec:
+  selector:
+    app: airflow-webserver
+  ports:
+  - port: 8080
+    targetPort: 8080
+    nodePort: 30081
+  type: NodePort 

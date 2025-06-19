@@ -1,9 +1,10 @@
 #!/bin/bash
 
 # LocalDataPlatform End-to-End Deployment Script
-# Deploys services in proper order: Custom Images → Vault → Flux → Ingress → MinIO + MariaDB → Hive Metastore → Kyuubi
+# Deploys services in proper order: Custom Images → Vault → Flux → Ingress → MinIO + MariaDB → Hive Metastore → Kyuubi → Airflow
 
 set -e  # Exit on any error
+set -o pipefail # Exit on pipe failures
 
 # Colors for output
 RED='\033[0;31m'
@@ -19,19 +20,25 @@ VAULT_NAMESPACE="vault-system"
 KYUUBI_NAMESPACE="kyuubi"
 FLUX_NAMESPACE="flux-system"
 INGRESS_NAMESPACE="ingress-nginx"
+AIRFLOW_NAMESPACE="airflow"
 MINIO_NAMESPACE="kyuubi"
 MARIADB_NAMESPACE="kyuubi"
 
 # Custom Docker images
-HIVE_METASTORE_IMAGE="hive-metastore-custom:3.1.3"
+HIVE_METASTORE_IMAGE="hive-metastore:3.1.3"
 KYUUBI_SERVER_IMAGE="kyuubi-server:1.10.0"
 SPARK_ENGINE_ICEBERG_IMAGE="spark-engine-iceberg:3.5.0-1.4.2"
+DBT_SPARK_IMAGE="dbt-spark:latest"
 
 # Docker image directories
 DOCKER_BASE_DIR="docker"
 HIVE_METASTORE_DIR="${DOCKER_BASE_DIR}/hive-metastore"
 KYUUBI_SERVER_DIR="${DOCKER_BASE_DIR}/kyuubi-server"
 SPARK_ENGINE_ICEBERG_DIR="${DOCKER_BASE_DIR}/spark-engine-iceberg"
+DBT_SPARK_DIR="${DOCKER_BASE_DIR}/dbt-spark"
+
+# Global flags
+FORCE_REBUILD=false
 
 # Helper functions
 log_info() {
@@ -64,7 +71,7 @@ show_banner() {
     ║              Minikube Deployment Script                      ║
     ║                                                              ║
     ║  🐳 Custom Images → 🔐 Vault → 🚀 Flux → 🌐 Ingress        ║
-    ║  📦 MinIO + 🗄️ MariaDB → 🐝 Hive → 📊 Kyuubi              ║
+    ║  📦 MinIO + 🗄️ MariaDB → 🐝 Hive → 📊 Kyuubi → ⚡ Airflow  ║
     ╚══════════════════════════════════════════════════════════════╝
 EOF
     echo -e "${NC}"
@@ -91,7 +98,7 @@ check_minikube_docker() {
     return 0
 }
 
-# Build a single Docker image with proper error handling
+# Build a single Docker image with proper error handling and force rebuild support
 build_single_image() {
     local image_name="$1"
     local dockerfile_dir="$2"
@@ -107,6 +114,18 @@ build_single_image() {
         return 1
     fi
     
+    # Check if image exists and force flag
+    if verify_image_exists "${image_name}" && [[ "${FORCE_REBUILD}" != "true" ]]; then
+        log_success "✅ Image ${image_name} already exists (use --force to rebuild)"
+        return 0
+    fi
+    
+    if [[ "${FORCE_REBUILD}" == "true" ]]; then
+        log_info "🔄 Force rebuilding ${image_name}..."
+        # Remove existing image
+        docker rmi "${image_name}" 2>/dev/null || true
+    fi
+    
     # Build the image with proper error handling
     log_info "Building ${image_name}... (this may take several minutes)"
     
@@ -114,7 +133,12 @@ build_single_image() {
     local abs_dockerfile_dir=$(realpath "${dockerfile_dir}")
     local abs_context_dir=$(realpath "${context_dir}")
     
-    if docker build --no-cache -t "${image_name}" -f "${abs_dockerfile_dir}/Dockerfile" "${abs_context_dir}" 2>&1 | tee "/tmp/docker-build-${image_name//[^a-zA-Z0-9]/-}.log"; then
+    local build_args=""
+    if [[ "${FORCE_REBUILD}" == "true" ]]; then
+        build_args="--no-cache"
+    fi
+    
+    if docker build ${build_args} -t "${image_name}" -f "${abs_dockerfile_dir}/Dockerfile" "${abs_context_dir}" 2>&1 | tee "/tmp/docker-build-${image_name//[^a-zA-Z0-9]/-}.log"; then
         log_success "✅ Successfully built ${image_name}"
         
         # Verify the image exists
@@ -237,7 +261,7 @@ build_custom_images() {
     
     # Build Hive Metastore custom image
     if [[ -d "${HIVE_METASTORE_DIR}" ]]; then
-        if ! build_single_image "${HIVE_METASTORE_IMAGE}" "${HIVE_METASTORE_DIR}"; then
+        if ! build_single_image "${HIVE_METASTORE_IMAGE}" "${HIVE_METASTORE_DIR}" "${DOCKER_BASE_DIR}"; then
             ((build_errors++))
         fi
     else
@@ -247,7 +271,7 @@ build_custom_images() {
     
     # Build Kyuubi Server custom image
     if [[ -d "${KYUUBI_SERVER_DIR}" ]]; then
-        if ! build_single_image "${KYUUBI_SERVER_IMAGE}" "${KYUUBI_SERVER_DIR}"; then
+        if ! build_single_image "${KYUUBI_SERVER_IMAGE}" "${KYUUBI_SERVER_DIR}" "${DOCKER_BASE_DIR}"; then
             ((build_errors++))
         fi
     else
@@ -257,11 +281,21 @@ build_custom_images() {
     
     # Build Spark Engine Iceberg custom image
     if [[ -d "${SPARK_ENGINE_ICEBERG_DIR}" ]]; then
-        if ! build_single_image "${SPARK_ENGINE_ICEBERG_IMAGE}" "${SPARK_ENGINE_ICEBERG_DIR}"; then
+        if ! build_single_image "${SPARK_ENGINE_ICEBERG_IMAGE}" "${SPARK_ENGINE_ICEBERG_DIR}" "${DOCKER_BASE_DIR}"; then
             ((build_errors++))
         fi
     else
         log_warning "Spark Engine Iceberg Docker directory not found: ${SPARK_ENGINE_ICEBERG_DIR}"
+        ((build_errors++))
+    fi
+    
+    # Build DBT Spark custom image
+    if [[ -d "${DBT_SPARK_DIR}" ]]; then
+        if ! build_single_image "${DBT_SPARK_IMAGE}" "${DBT_SPARK_DIR}" "${DOCKER_BASE_DIR}"; then
+            ((build_errors++))
+        fi
+    else
+        log_warning "DBT Spark Docker directory not found: ${DBT_SPARK_DIR}"
         ((build_errors++))
     fi
     
@@ -281,7 +315,7 @@ build_custom_images() {
     log_info "🔍 Final verification of all custom images..."
     local verification_errors=0
     
-    for image in "${HIVE_METASTORE_IMAGE}" "${KYUUBI_SERVER_IMAGE}" "${SPARK_ENGINE_ICEBERG_IMAGE}"; do
+    for image in "${HIVE_METASTORE_IMAGE}" "${KYUUBI_SERVER_IMAGE}" "${SPARK_ENGINE_ICEBERG_IMAGE}" "${DBT_SPARK_IMAGE}"; do
         if ! verify_image_exists "$image"; then
             ((verification_errors++))
         fi
@@ -295,7 +329,7 @@ build_custom_images() {
     # Show final status
     echo ""
     log_info "📋 Successfully built custom images:"
-    docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(hive-metastore-custom|kyuubi-server|spark-engine-iceberg)" || true
+    docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(hive-metastore-custom|kyuubi-server|spark-engine-iceberg|dbt-spark)" || true
     echo ""
     
     log_success "✅ All custom Docker images built and verified successfully"
@@ -586,7 +620,7 @@ deploy_kyuubi() {
     # Deploy Kyuubi via direct Kubernetes manifests (instead of Helm)
     log_info "Deploying Kyuubi via Kubernetes manifests..."
     if [ -d "infrastructure/apps/kyuubi/base" ]; then
-        kubectl apply -k infrastructure/apps/kyuubi/base/ --timeout=600s
+        kubectl apply -f infrastructure/apps/kyuubi/base/ --timeout=600s
     fi
     
     # Wait for Kyuubi deployments
@@ -621,6 +655,34 @@ deploy_kyuubi() {
     done
     
     log_success "✅ Kyuubi deployed successfully"
+}
+
+# Phase 7: Deploy Airflow
+deploy_airflow() {
+    log_header "PHASE 7: DEPLOYING AIRFLOW"
+    
+    # Deploy Airflow
+    log_info "Deploying Airflow via GitOps..."
+    if [ -d "infrastructure/apps/airflow" ]; then
+        kubectl apply -k infrastructure/apps/airflow/ --timeout=600s
+    fi
+    
+    # Wait for Airflow
+    log_info "⏳ Waiting for Airflow to be ready..."
+    for i in {1..120}; do
+        if kubectl get pods -n ${AIRFLOW_NAMESPACE} -l app=airflow &>/dev/null; then
+            kubectl wait --for=condition=ready pod -l app=airflow -n ${AIRFLOW_NAMESPACE} --timeout=600s
+            break
+        fi
+        if [ $i -eq 120 ]; then
+            log_warning "Airflow not ready yet, continuing..."
+            break
+        fi
+        log_info "Waiting for Airflow pods to appear... ($i/120)"
+        sleep 10
+    done
+    
+    log_success "✅ Airflow deployed successfully"
 }
 
 # Setup access and ingress
@@ -699,9 +761,14 @@ show_status() {
     kubectl get pods -n ${KYUUBI_NAMESPACE} -l app.kubernetes.io/name=kyuubi 2>/dev/null || echo "  Kyuubi: Not deployed"
     echo ""
     
+    # Show Airflow status
+    echo "⚡ Airflow (${AIRFLOW_NAMESPACE}):"
+    kubectl get pods -n ${AIRFLOW_NAMESPACE} 2>/dev/null || echo "  Airflow: Not deployed"
+    echo ""
+    
     # Show services
     echo "🌐 Services:"
-    kubectl get svc --all-namespaces | grep -E "(vault|kyuubi|ingress|hive|minio|mariadb)" 2>/dev/null || echo "  No services found"
+    kubectl get svc --all-namespaces | grep -E "(vault|kyuubi|ingress|hive|minio|mariadb|airflow)" 2>/dev/null || echo "  No services found"
     echo ""
     
     # Show HelmReleases
@@ -734,6 +801,7 @@ show_next_steps() {
     echo "  ✅ Phase 4: MinIO + MariaDB (storage)"
     echo "  ✅ Phase 5: Hive Metastore (metadata)"
     echo "  ✅ Phase 6: Kyuubi (Spark SQL with Iceberg)"
+    echo "  ✅ Phase 7: Airflow (workflow orchestration)"
     echo ""
     echo "🛠️  Test Iceberg Functionality:"
     echo "  • Connect to Kyuubi: beeline -u 'jdbc:hive2://kyuubi.local:10009'"
@@ -757,6 +825,7 @@ show_next_steps() {
     echo "  • MariaDB: Relational database for Hive Metastore"
     echo "  • Hive Metastore: Metadata service for Iceberg tables"
     echo "  • Kyuubi: Spark SQL gateway with Iceberg support"
+    echo "  • Airflow: Workflow orchestration"
     echo ""
     echo "🔍 Troubleshooting:"
     echo "  • Check logs: kubectl logs -n <namespace> <pod-name>"
@@ -779,7 +848,6 @@ cleanup() {
     # Clean up Kyuubi first
     log_info "Cleaning up Kyuubi..."
     kubectl delete helmrelease kyuubi-dbt kyuubi-dbt-shared -n ${KYUUBI_NAMESPACE} --ignore-not-found=true || true
-    kubectl delete deployment kyuubi-dbt kyuubi-dbt-shared -n ${KYUUBI_NAMESPACE} --ignore-not-found=true || true
     
     # Clean up Hive
     log_info "Cleaning up Hive Metastore..."
@@ -836,6 +904,7 @@ main() {
             deploy_storage_databases
             deploy_hive
             deploy_kyuubi
+            deploy_airflow
             setup_access
             show_status
             show_next_steps
@@ -903,6 +972,7 @@ main() {
             echo "    • Phase 4: MinIO + MariaDB (storage)"
             echo "    • Phase 5: Hive Metastore (metadata)"
             echo "    • Phase 6: Kyuubi (Spark SQL with Iceberg)"
+            echo "    • Phase 7: Airflow (workflow orchestration)"
             echo "  build-images  - Build only the custom Docker images"
             echo "  verify-images - Verify that all custom images are available"
             echo "  cleanup       - Clean up all Kubernetes resources"

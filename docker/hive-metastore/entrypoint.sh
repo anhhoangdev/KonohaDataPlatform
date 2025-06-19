@@ -1,8 +1,9 @@
 #!/bin/bash
 set -e
 
-echo "💬 Substituting environment variables in hive-site.xml..."
-envsubst < ${HIVE_HOME}/conf/hive-site.xml.template > ${HIVE_HOME}/conf/hive-site.xml
+echo "💬 Substituting environment variables in config files..."
+envsubst < ${HIVE_CONF_DIR}/hive-site.xml.template > ${HIVE_CONF_DIR}/hive-site.xml
+envsubst < ${HADOOP_CONF_DIR}/core-site.xml.template > ${HADOOP_CONF_DIR}/core-site.xml
 
 echo "💬 Waiting for MariaDB to be ready..."
 sleep 15

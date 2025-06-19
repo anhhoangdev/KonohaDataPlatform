@@ -1,0 +1,163 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+- base
+
+labels:
+- pairs:
+    environment: minikube
+    platform: local-data-platform
+    tier: orchestration
+
+images:
+  - name: airflow-dbt
+    newTag: latest
+  - name: dbt-spark
+    newTag: latest
+
+patches:
+  # Airflow Webserver resource limits and environment variables
+  - target:
+      kind: Deployment
+      name: airflow-webserver
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PYTHONPATH
+          value: "/opt/airflow:/opt/airflow/dags"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DATA_PLATFORM_ENV
+          value: "dev"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DBT_IMAGE
+          value: "dbt-spark:latest"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: WAREHOUSE_BASE_PATH
+          value: "s3a://warehouse"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPARK_HOST
+          value: "kyuubi-dbt.kyuubi.svc.cluster.local"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPARK_PORT
+          value: "10009"
+      - op: replace
+        path: /spec/template/spec/volumes/0
+        value:
+          name: dag-repo
+          persistentVolumeClaim:
+            claimName: airflow-dag-pvc
+  
+  # Airflow Scheduler resource limits and environment variables
+  - target:
+      kind: Deployment
+      name: airflow-scheduler
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: PYTHONPATH
+          value: "/opt/airflow:/opt/airflow/dags"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DATA_PLATFORM_ENV
+          value: "dev"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: DBT_IMAGE
+          value: "dbt-spark:latest"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: WAREHOUSE_BASE_PATH
+          value: "s3a://warehouse"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPARK_HOST
+          value: "kyuubi-dbt.kyuubi.svc.cluster.local"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: SPARK_PORT
+          value: "10009"
+      - op: remove
+        path: /spec/template/spec/initContainers
+      - op: remove
+        path: /spec/template/spec/volumes/0
+      - op: replace
+        path: /spec/template/spec/volumes/0
+        value:
+          name: dag-repo
+          persistentVolumeClaim:
+            claimName: airflow-dag-pvc
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__KUBERNETES__WORKER_POD_TEMPLATE
+          value: |
+            {
+              "apiVersion": "v1",
+              "kind": "Pod",
+              "spec": {
+                "containers": [
+                  {
+                    "name": "base",
+                    "volumeMounts": [
+                      {
+                        "name": "dag-repo",
+                        "mountPath": "/opt/airflow/dags"
+                      }
+                    ]
+                  }
+                ],
+                "volumes": [
+                  {
+                    "name": "dag-repo",
+                    "persistentVolumeClaim": {
+                      "claimName": "airflow-dag-pvc"
+                    }
+                  }
+                ]
+              }
+            }
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            memory: "1Gi"
+            cpu: "500m"
+          limits:
+            memory: "2Gi"
+            cpu: "1000m" 

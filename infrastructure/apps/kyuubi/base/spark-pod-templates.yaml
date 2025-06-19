@@ -1,0 +1,109 @@
+---
+# ConfigMap for Spark Driver Pod Template
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spark-driver-template
+  namespace: kyuubi
+  labels:
+    app.kubernetes.io/name: kyuubi
+    app.kubernetes.io/component: spark-templates
+    app.kubernetes.io/part-of: data-platform
+data:
+  driver-template.yaml: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: driver-template
+      labels:
+        app.kubernetes.io/name: spark
+        app.kubernetes.io/component: driver
+        app.kubernetes.io/part-of: dbt-pipeline
+        workload-type: spark-driver
+    spec:
+      serviceAccountName: kyuubi-sa
+      containers:
+        - name: spark-kubernetes-driver
+          image: spark-engine-iceberg:3.5.0-1.4.2
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          env:
+            - name: SPARK_CONF_DIR
+              value: "/opt/spark/conf"
+            - name: SPARK_DRIVER_BIND_ADDRESS
+              valueFrom:
+                fieldRef:
+                  fieldPath: status.podIP
+          volumeMounts:
+            - name: spark-conf
+              mountPath: /opt/spark/conf
+              readOnly: true
+      volumes:
+        - name: spark-conf
+          emptyDir: {}
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: "workload-type"
+          operator: "Equal"
+          value: "data-platform"
+          effect: "NoSchedule"
+
+---
+# ConfigMap for Spark Executor Pod Template
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: spark-executor-template
+  namespace: kyuubi
+  labels:
+    app.kubernetes.io/name: kyuubi
+    app.kubernetes.io/component: spark-templates
+    app.kubernetes.io/part-of: data-platform
+data:
+  executor-template.yaml: |
+    apiVersion: v1
+    kind: Pod
+    metadata:
+      name: executor-template
+      labels:
+        app.kubernetes.io/name: spark
+        app.kubernetes.io/component: executor
+        app.kubernetes.io/part-of: dbt-pipeline
+        workload-type: spark-executor
+    spec:
+      serviceAccountName: kyuubi-sa
+      containers:
+        - name: spark-kubernetes-executor
+          image: spark-engine-iceberg:3.5.0-1.4.2
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "1Gi"
+              cpu: "500m"
+          env:
+            - name: SPARK_CONF_DIR
+              value: "/opt/spark/conf"
+          volumeMounts:
+            - name: spark-conf
+              mountPath: /opt/spark/conf
+              readOnly: true
+      volumes:
+        - name: spark-conf
+          emptyDir: {}
+      restartPolicy: Never
+      nodeSelector:
+        kubernetes.io/os: linux
+      tolerations:
+        - key: "workload-type"
+          operator: "Equal"
+          value: "data-platform"
+          effect: "NoSchedule" 

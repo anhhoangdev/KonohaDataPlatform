@@ -44,6 +44,40 @@ spec:
         - name: KYUUBI_HA_ENABLED
           value: "false"
         
+        # Lightweight Spark Configuration for DBT
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_DYNAMICALLOCATION_ENABLED
+          value: "false"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_EXECUTOR_MEMORY
+          value: "1g"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_EXECUTOR_CORES
+          value: "0.5"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_DRIVER_MEMORY
+          value: "1g"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_DRIVER_CORES
+          value: "0.5"
+        
+        # Kubernetes Pod Templates Configuration
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_DRIVER_PODTEMPLATESFILE
+          value: "/opt/spark/pod-templates/driver-template.yaml"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_EXECUTOR_PODTEMPLATESFILE
+          value: "/opt/spark/pod-templates/executor-template.yaml"
+        
+        # Pod Naming Configuration for DBT
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_EXECUTOR_PODNAMEPREFIX
+          value: "dbt-spark"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_DRIVER_PODNAMEPREFIX
+          value: "dbt-spark-driver"
+        
+        # Kubernetes Configuration
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_MASTER
+          value: "k8s://https://kubernetes.default.svc:443"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_NAMESPACE
+          value: "kyuubi"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME
+          value: "kyuubi-sa"
+        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_AUTHENTICATE_EXECUTOR_SERVICEACCOUNTNAME
+          value: "kyuubi-sa"
+        
         # Iceberg Configuration - Direct Spark configuration
         - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_EXTENSIONS
           value: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
@@ -175,6 +209,48 @@ spec:
         - name: SPARK_HADOOP_FS_S3A_IMPL
           value: "org.apache.hadoop.fs.s3a.S3AFileSystem"
 
+        # Kyuubi Core Configuration
+        - name: KYUUBI_CONF_DIR
+          value: "/opt/kyuubi/conf"
+        - name: KYUUBI_LOG_DIR
+          value: "/opt/kyuubi/logs"
+        - name: KYUUBI_PID_DIR
+          value: "/tmp"
+        
+        # Lightweight Spark Configuration for DBT
+        - name: SPARK_EXECUTOR_INSTANCES
+          value: "2"
+        - name: SPARK_EXECUTOR_MEMORY
+          value: "1g"
+        - name: SPARK_EXECUTOR_CORES
+          value: "1"
+        - name: SPARK_DRIVER_MEMORY
+          value: "1g"
+        - name: SPARK_DRIVER_CORES
+          value: "1"
+        
+        # Kubernetes Integration
+        - name: SPARK_KUBERNETES_NAMESPACE
+          value: "kyuubi"
+        - name: KUBERNETES_MASTER
+          value: "https://kubernetes.default.svc"
+        - name: SPARK_KUBERNETES_DRIVER_POD_TEMPLATE_FILE
+          value: "/opt/spark/pod-templates/driver-pod-template.yaml"
+        - name: SPARK_KUBERNETES_EXECUTOR_POD_TEMPLATE_FILE
+          value: "/opt/spark/pod-templates/executor-pod-template.yaml"
+        
+        # Dynamic Pod Naming Support
+        - name: SPARK_KUBERNETES_EXECUTOR_POD_NAME_PREFIX_TEMPLATE
+          value: "dbt-spark-{dag_id}-{model_name}"
+        - name: SPARK_APP_NAME_TEMPLATE
+          value: "{dag_id}-{task_id}"
+        
+        # Session Configuration for Variable Substitution
+        - name: KYUUBI_SESSION_ENGINE_SPARK_SQL_ADAPTIVE_ENABLED
+          value: "true"
+        - name: KYUUBI_SESSION_VARIABLE_SUBSTITUTION_ENABLED
+          value: "true"
+
         resources:
           requests:
             memory: "500Mi"
@@ -182,6 +258,17 @@ spec:
           limits:
             memory: "1Gi"
             cpu: "500m"
+        
+        volumeMounts:
+        - name: spark-driver-template
+          mountPath: /opt/spark/pod-templates/driver-template.yaml
+          subPath: driver-template.yaml
+          readOnly: true
+        - name: spark-executor-template
+          mountPath: /opt/spark/pod-templates/executor-template.yaml
+          subPath: executor-template.yaml
+          readOnly: true
+        
         livenessProbe:
           tcpSocket:
             port: 10009
@@ -192,20 +279,37 @@ spec:
             port: 10009
           initialDelaySeconds: 30
           periodSeconds: 10
+      
+      volumes:
+      - name: spark-driver-template
+        configMap:
+          name: spark-driver-template
+          items:
+          - key: driver-template.yaml
+            path: driver-template.yaml
+      - name: spark-executor-template
+        configMap:
+          name: spark-executor-template
+          items:
+          - key: executor-template.yaml
+            path: executor-template.yaml
+
 ---
 apiVersion: v1
 kind: Service
 metadata:
   name: kyuubi-dbt
   namespace: kyuubi
-spec:
-  selector:
+  labels:
     app: kyuubi-dbt
+spec:
+  type: ClusterIP
   ports:
-  - name: thrift-binary
+  - name: thrift
     port: 10009
     targetPort: 10009
-  - name: rest-api
+  - name: rest
     port: 10099
     targetPort: 10099
-  type: ClusterIP 
+  selector:
+    app: kyuubi-dbt 

@@ -1,0 +1,46 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: airflow-triggerer
+  namespace: airflow
+  labels:
+    app: airflow-triggerer
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: airflow-triggerer
+  template:
+    metadata:
+      labels:
+        app: airflow-triggerer
+    spec:
+      serviceAccountName: airflow-sa
+      containers:
+      - name: airflow-triggerer
+        image: apache/airflow:2.8.2-python3.11
+        env:
+        - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
+          value: "postgresql+psycopg2://airflow:airflow@airflow-postgresql:5432/airflow"
+        - name: AIRFLOW__CORE__EXECUTOR
+          value: "KubernetesExecutor"
+        - name: AIRFLOW__CORE__FERNET_KEY
+          value: "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+        command:
+        - airflow
+        - triggerer
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "100m"
+          limits:
+            memory: "512Mi"
+            cpu: "300m"
+        livenessProbe:
+          exec:
+            command:
+            - pgrep
+            - -f
+            - "airflow triggerer"
+          initialDelaySeconds: 60
+          periodSeconds: 30 

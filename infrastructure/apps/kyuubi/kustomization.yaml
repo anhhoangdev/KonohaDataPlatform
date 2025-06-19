@@ -5,6 +5,7 @@ resources:
 - base/namespace.yaml
 - base/rbac.yaml
 - base/vault-secrets.yaml
+- base/spark-pod-templates.yaml
 - base/kyuubi-dbt-deployment.yaml
 - base/kyuubi-dbt-shared-deployment.yaml
 
