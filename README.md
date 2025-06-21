@@ -29,10 +29,6 @@
 *Star the repo & join the village!* 🏯✨
 
 ---
-
-# LocalDataPlatform
-
-A comprehensive data platform built on Kubernetes with HashiCorp Vault for secrets management, FluxCD for GitOps, and support for Kyuubi, Hive Metastore, and other data tools.
 ## Table of Contents
 
 - [Architecture](#-architecture)
