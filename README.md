@@ -296,3 +296,8 @@ For issues and questions:
 - Create an issue in this repository
 - Check the [Troubleshooting guide](docs/troubleshooting.md)
 - Review Kubernetes and Vault documentation 
+
+## 💬 Join the Village
+Pull requests = new jutsu scrolls.  
+Issues = SOS flares from the field.  
+Star ⭐ this repo if you vibed—let's build the next data Hokage era together! 
