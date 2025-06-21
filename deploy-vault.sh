@@ -28,7 +28,13 @@ MARIADB_NAMESPACE="kyuubi"
 HIVE_METASTORE_IMAGE="hive-metastore:3.1.3"
 KYUUBI_SERVER_IMAGE="kyuubi-server:1.10.0"
 SPARK_ENGINE_ICEBERG_IMAGE="spark-engine-iceberg:3.5.0-1.4.2"
+
+# Additional custom images
+# Postgres CDC custom image (pre-loaded with sample data)
+POSTGRES_CDC_IMAGE="postgres-cdc:15"
+
 DBT_SPARK_IMAGE="dbt-spark:latest"
+KAFKA_CONNECT_FULL_IMAGE="local-kafka-connect-full:v10"
 
 # Docker image directories
 DOCKER_BASE_DIR="docker"
@@ -36,6 +42,10 @@ HIVE_METASTORE_DIR="${DOCKER_BASE_DIR}/hive-metastore"
 KYUUBI_SERVER_DIR="${DOCKER_BASE_DIR}/kyuubi-server"
 SPARK_ENGINE_ICEBERG_DIR="${DOCKER_BASE_DIR}/spark-engine-iceberg"
 DBT_SPARK_DIR="${DOCKER_BASE_DIR}/dbt-spark"
+KAFKA_CONNECT_ICEBERG_DIR="${DOCKER_BASE_DIR}/kafka-connect-iceberg"
+
+# Postgres CDC Docker context
+POSTGRES_CDC_DIR="${DOCKER_BASE_DIR}/postgres"
 
 # Global flags
 FORCE_REBUILD=false
@@ -182,7 +192,7 @@ cleanup_old_images() {
     docker image prune -f &>/dev/null || true
     
     # Remove old versions of our custom images (keep only latest)
-    docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "^(hive-metastore-custom|kyuubi-server|spark-engine-iceberg)" | tail -n +4 | xargs -r docker rmi &>/dev/null || true
+    docker images --format "{{.Repository}}:{{.Tag}}" | grep -E "^(hive-metastore-custom|kyuubi-server|spark-engine-iceberg|kafka-connect-iceberg|postgres-cdc)" | tail -n +4 | xargs -r docker rmi &>/dev/null || true
     
     log_info "✅ Docker cleanup completed"
 }
@@ -299,6 +309,26 @@ build_custom_images() {
         ((build_errors++))
     fi
     
+    # Build Kafka Connect full image (with S3, Debezium, and Iceberg connectors)
+    if [[ -d "docker/kafka-connect" ]]; then
+        if ! build_single_image "${KAFKA_CONNECT_FULL_IMAGE}" "docker/kafka-connect" "${DOCKER_BASE_DIR}"; then
+            ((build_errors++))
+        fi
+    else
+        log_warning "Kafka Connect Docker directory not found: docker/kafka-connect"
+        ((build_errors++))
+    fi
+    
+    # Build Postgres CDC image
+    if [[ -d "${POSTGRES_CDC_DIR}" ]]; then
+        if ! build_single_image "${POSTGRES_CDC_IMAGE}" "${POSTGRES_CDC_DIR}" "${DOCKER_BASE_DIR}"; then
+            ((build_errors++))
+        fi
+    else
+        log_warning "Postgres CDC Docker directory not found: ${POSTGRES_CDC_DIR}"
+        ((build_errors++))
+    fi
+    
     # Check if we had any build errors
     if [ $build_errors -gt 0 ]; then
         log_error "❌ ${build_errors} image(s) failed to build"
@@ -315,7 +345,7 @@ build_custom_images() {
     log_info "🔍 Final verification of all custom images..."
     local verification_errors=0
     
-    for image in "${HIVE_METASTORE_IMAGE}" "${KYUUBI_SERVER_IMAGE}" "${SPARK_ENGINE_ICEBERG_IMAGE}" "${DBT_SPARK_IMAGE}"; do
+    for image in "${HIVE_METASTORE_IMAGE}" "${KYUUBI_SERVER_IMAGE}" "${SPARK_ENGINE_ICEBERG_IMAGE}" "${DBT_SPARK_IMAGE}" "${KAFKA_CONNECT_FULL_IMAGE}" "${POSTGRES_CDC_IMAGE}"; do
         if ! verify_image_exists "$image"; then
             ((verification_errors++))
         fi
@@ -329,7 +359,7 @@ build_custom_images() {
     # Show final status
     echo ""
     log_info "📋 Successfully built custom images:"
-    docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(hive-metastore-custom|kyuubi-server|spark-engine-iceberg|dbt-spark)" || true
+    docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(hive-metastore-custom|kyuubi-server|spark-engine-iceberg|dbt-spark|kafka-connect-iceberg|postgres-cdc)" || true
     echo ""
     
     log_success "✅ All custom Docker images built and verified successfully"
@@ -367,6 +397,8 @@ deploy_vault() {
     log_info "Deploying namespaces and service accounts..."
     terraform apply -target=kubernetes_namespace.vault -auto-approve
     terraform apply -target=kubernetes_namespace.kyuubi -auto-approve
+    terraform apply -target=kubernetes_namespace.kafka_platform -auto-approve
+    terraform apply -target=kubernetes_namespace.source_data -auto-approve
     terraform apply -target=kubernetes_service_account.vault -auto-approve
     terraform apply -target=kubernetes_service_account.kyuubi -auto-approve
     terraform apply -target=kubernetes_service_account.kyuubi_dbt -auto-approve
@@ -576,6 +608,64 @@ deploy_storage_databases() {
     log_success "✅ MinIO and MariaDB deployed successfully"
 }
 
+# Phase 4.5: Deploy Kafka Platform with Iceberg Support
+deploy_kafka() {
+    log_header "PHASE 4.5: DEPLOYING KAFKA PLATFORM WITH ICEBERG"
+
+    # Deploy Kafka platform (Zookeeper, Kafka, Schema Registry, Kafka Connect with Iceberg, Iceberg REST Catalog)
+    log_info "Deploying Kafka platform with Iceberg support..."
+    if [ -d "infrastructure/apps/kafka" ]; then
+        # Create namespace first
+        kubectl create namespace kafka-platform --dry-run=client -o yaml | kubectl apply -f -
+        
+        # Apply Kafka platform base configuration
+        kubectl apply -k infrastructure/apps/kafka/base/ --timeout=600s
+        
+        log_info "⏳ Waiting for Zookeeper to be ready..."
+        kubectl wait --for=condition=ready pod -l app=zookeeper -n kafka-platform --timeout=300s || true
+        
+        log_info "⏳ Waiting for Kafka broker to be ready..."
+        kubectl wait --for=condition=ready pod -l app=kafka -n kafka-platform --timeout=600s || true
+        
+        log_info "⏳ Waiting for Schema Registry to be ready..."
+        kubectl wait --for=condition=ready pod -l app=schema-registry -n kafka-platform --timeout=300s || true
+        
+        log_info "⏳ Waiting for Kafka Connect (with Iceberg support) to be ready..."
+        kubectl wait --for=condition=ready pod -l app=kafka-connect -n kafka-platform --timeout=600s || true
+        
+        log_info "⏳ Waiting for Iceberg REST Catalog to be ready..."
+        kubectl wait --for=condition=ready pod -l app=iceberg-rest-catalog -n kafka-platform --timeout=300s || true
+        
+        # Setup Kafka connectors
+        log_info "Setting up Kafka connectors..."
+        if [ -f "infrastructure/apps/kafka/scripts/setup-connectors.sh" ]; then
+            cd infrastructure/apps/kafka
+            chmod +x scripts/setup-connectors.sh
+            ./scripts/setup-connectors.sh || log_warning "Connector setup had some issues, continuing..."
+            cd ../../..
+        fi
+    else
+        log_warning "Kafka platform manifests not found at infrastructure/apps/kafka"
+    fi
+
+    log_success "✅ Kafka platform with Iceberg support deployed successfully"
+}
+
+# Phase 4.6: Deploy Postgres CDC source
+deploy_postgres_cdc() {
+    log_header "PHASE 4.6: DEPLOYING POSTGRES CDC"
+
+    if [ -d "infrastructure/apps/postgres-cdc" ]; then
+        kubectl apply -k infrastructure/apps/postgres-cdc/ --timeout=300s
+
+        log_info "⏳ Waiting for Postgres CDC to be ready…"
+        kubectl wait --for=condition=ready pod -l app=postgres-cdc -n source-data --timeout=300s || true
+        log_success "✅ Postgres CDC deployed successfully"
+    else
+        log_warning "Postgres CDC manifests not found, skipping"
+    fi
+}
+
 # Phase 5: Deploy Hive Metastore
 deploy_hive() {
     log_header "PHASE 5: DEPLOYING HIVE METASTORE"
@@ -667,21 +757,6 @@ deploy_airflow() {
         kubectl apply -k infrastructure/apps/airflow/ --timeout=600s
     fi
     
-    # Wait for Airflow
-    log_info "⏳ Waiting for Airflow to be ready..."
-    for i in {1..120}; do
-        if kubectl get pods -n ${AIRFLOW_NAMESPACE} -l app=airflow &>/dev/null; then
-            kubectl wait --for=condition=ready pod -l app=airflow -n ${AIRFLOW_NAMESPACE} --timeout=600s
-            break
-        fi
-        if [ $i -eq 120 ]; then
-            log_warning "Airflow not ready yet, continuing..."
-            break
-        fi
-        log_info "Waiting for Airflow pods to appear... ($i/120)"
-        sleep 10
-    done
-    
     log_success "✅ Airflow deployed successfully"
 }
 
@@ -751,6 +826,11 @@ show_status() {
     kubectl get pods -n ${MARIADB_NAMESPACE} 2>/dev/null || echo "  MariaDB: Not deployed"
     echo ""
     
+    # Show Kafka Platform status
+    echo "🚀 Kafka Platform (kafka-platform):"
+    kubectl get pods -n kafka-platform 2>/dev/null || echo "  Kafka Platform: Not deployed"
+    echo ""
+    
     # Show Hive Metastore status
     echo "🐝 Hive Metastore (${KYUUBI_NAMESPACE}):"
     kubectl get pods -n ${KYUUBI_NAMESPACE} -l app=hive-metastore 2>/dev/null || echo "  Hive Metastore: Not deployed"
@@ -799,9 +879,17 @@ show_next_steps() {
     echo "  ✅ Phase 2: FluxCD (GitOps)"
     echo "  ✅ Phase 3: Ingress (external access)"
     echo "  ✅ Phase 4: MinIO + MariaDB (storage)"
+    echo "  ✅ Phase 4.5: Kafka Platform (streaming with Iceberg sink)"
+    echo "  ✅ Phase 4.6: Postgres CDC (change data capture)"
     echo "  ✅ Phase 5: Hive Metastore (metadata)"
     echo "  ✅ Phase 6: Kyuubi (Spark SQL with Iceberg)"
     echo "  ✅ Phase 7: Airflow (workflow orchestration)"
+    echo ""
+    echo "🛠️  Test Kafka and Iceberg Functionality:"
+    echo "  • Check Kafka: kubectl get pods -n kafka-platform"
+    echo "  • Access Kafka Connect: kubectl port-forward -n kafka-platform svc/kafka-connect 8083:8083"
+    echo "  • List connectors: curl http://localhost:8083/connectors"
+    echo "  • Check Iceberg tables: MinIO bucket 'warehouse' contains table data"
     echo ""
     echo "🛠️  Test Iceberg Functionality:"
     echo "  • Connect to Kyuubi: beeline -u 'jdbc:hive2://kyuubi.local:10009'"
@@ -879,7 +967,7 @@ cleanup() {
     flux uninstall --namespace=flux-system --silent || true
     
     # Clean up namespaces (remove duplicates since MinIO and MariaDB are in kyuubi namespace)
-    local namespaces_to_delete=(${VAULT_NAMESPACE} ${FLUX_NAMESPACE} ${KYUUBI_NAMESPACE} ${INGRESS_NAMESPACE} vault-secrets-operator-system)
+    local namespaces_to_delete=(${VAULT_NAMESPACE} ${FLUX_NAMESPACE} ${KYUUBI_NAMESPACE} kafka-platform source-data ${INGRESS_NAMESPACE} vault-secrets-operator-system)
     for ns in "${namespaces_to_delete[@]}"; do
         if kubectl get namespace $ns &> /dev/null; then
             log_info "Deleting namespace: $ns"
@@ -902,6 +990,8 @@ main() {
             deploy_flux
             deploy_ingress
             deploy_storage_databases
+            deploy_kafka
+            deploy_postgres_cdc
             deploy_hive
             deploy_kyuubi
             deploy_airflow
@@ -918,7 +1008,7 @@ main() {
             log_header "VERIFYING CUSTOM IMAGES"
             local verification_errors=0
             
-            for image in "${HIVE_METASTORE_IMAGE}" "${KYUUBI_SERVER_IMAGE}" "${SPARK_ENGINE_ICEBERG_IMAGE}"; do
+            for image in "${HIVE_METASTORE_IMAGE}" "${KYUUBI_SERVER_IMAGE}" "${SPARK_ENGINE_ICEBERG_IMAGE}" "${DBT_SPARK_IMAGE}" "${KAFKA_CONNECT_FULL_IMAGE}" "${POSTGRES_CDC_IMAGE}"; do
                 if ! verify_image_exists "$image"; then
                     ((verification_errors++))
                 fi
@@ -928,7 +1018,7 @@ main() {
                 log_success "✅ All custom images are available for deployment"
                 echo ""
                 log_info "📋 Available custom images:"
-                docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(hive-metastore-custom|kyuubi-server|spark-engine-iceberg)" || true
+                docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(hive-metastore-custom|kyuubi-server|spark-engine-iceberg|dbt-spark|kafka-connect-iceberg|postgres-cdc)" || true
             else
                 log_error "❌ ${verification_errors} image(s) are missing"
                 echo "Run: $0 build-images"
@@ -943,7 +1033,7 @@ main() {
             log_header "CLEANING UP CUSTOM IMAGES"
             
             log_info "🧹 Removing custom Docker images..."
-            for image in "${HIVE_METASTORE_IMAGE}" "${KYUUBI_SERVER_IMAGE}" "${SPARK_ENGINE_ICEBERG_IMAGE}"; do
+            for image in "${HIVE_METASTORE_IMAGE}" "${KYUUBI_SERVER_IMAGE}" "${SPARK_ENGINE_ICEBERG_IMAGE}" "${DBT_SPARK_IMAGE}" "${KAFKA_CONNECT_FULL_IMAGE}" "${POSTGRES_CDC_IMAGE}"; do
                 if docker images --format "{{.Repository}}:{{.Tag}}" | grep -q "^${image}$"; then
                     log_info "Removing image: ${image}"
                     docker rmi "${image}" || true
@@ -970,6 +1060,8 @@ main() {
             echo "    • Phase 2: FluxCD (GitOps)"
             echo "    • Phase 3: Ingress (external access)"
             echo "    • Phase 4: MinIO + MariaDB (storage)"
+            echo "    • Phase 4.5: Kafka Platform (streaming with Iceberg sink)"
+            echo "    • Phase 4.6: Postgres CDC (change data capture)"
             echo "    • Phase 5: Hive Metastore (metadata)"
             echo "    • Phase 6: Kyuubi (Spark SQL with Iceberg)"
             echo "    • Phase 7: Airflow (workflow orchestration)"
@@ -983,12 +1075,15 @@ main() {
             echo "  • ${HIVE_METASTORE_IMAGE} - Hive Metastore with S3/MinIO support"
             echo "  • ${KYUUBI_SERVER_IMAGE} - Kyuubi SQL Gateway"
             echo "  • ${SPARK_ENGINE_ICEBERG_IMAGE} - Spark with Iceberg support"
+            echo "  • ${DBT_SPARK_IMAGE} - DBT Spark"
+            echo "  • ${KAFKA_CONNECT_FULL_IMAGE} - Kafka Connect Iceberg"
+            echo "  • ${POSTGRES_CDC_IMAGE} - Postgres CDC source"
             echo ""
             echo "🚀 Minikube Requirements:"
             echo "  • 6+ CPUs, 12GB+ RAM, 40GB+ disk"
             echo "  • Addons: ingress, metrics-server, registry"
             echo ""
-            echo "🔧 Troubleshooting:"
+            echo "🛠️  Troubleshooting:"
             echo "  • If image build fails: $0 build-images"
             echo "  • To verify images: $0 verify-images"
             echo "  • To rebuild images: $0 cleanup-images && $0 build-images"

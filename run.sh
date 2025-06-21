@@ -72,8 +72,7 @@ setup_minikube() {
         --driver=docker \
         --mount \
         --mount-type=sshfs \
-        --mount-string="$HOME/Documents/LocalDataPlatform/dag:/hosthome/anhhoangdev/Documents/LocalDataPlatform/dag" \
-        --mount-string="$HOME/Documents/LocalDataPlatform/dbt:/hosthome/anhhoangdev/Documents/LocalDataPlatform/dbt"
+        --mount-string="$HOME/Documents/LocalDataPlatform:/hosthome/anhhoangdev/Documents/LocalDataPlatform" \
         
         # Enable required addons
     log_info "Enabling Minikube addons..."
@@ -92,6 +91,7 @@ build_images() {
         "kyuubi-server:1.10.0" 
         "spark-engine-iceberg:1.5.0"
         "dbt-spark:latest"
+        "kafka-connect-iceberg:latest"
     )
     
     local directories=(
@@ -99,6 +99,7 @@ build_images() {
         "docker/kyuubi-server"
         "docker/spark-engine-iceberg"
         "docker/dbt-spark"
+        "docker/kafka-connect-iceberg"
     )
     
     # Check if images already exist locally
@@ -128,6 +129,10 @@ build_images() {
         log_info "Building Spark Engine with Iceberg image..."
         (cd docker/spark-engine-iceberg && docker build -t spark-engine-iceberg:1.5.0 .)
         
+        # Build Kafka Connect Iceberg image
+        log_info "Building Kafka Connect Iceberg image..."
+        (cd docker/kafka-connect-iceberg && docker build -t kafka-connect-iceberg:latest .)
+        
         log_success "All Docker images built locally"
     else
         log_info "All images exist locally, skipping build (use FORCE_BUILD=true to rebuild)"
@@ -144,7 +149,7 @@ build_images() {
     
     # List images in Minikube
     log_info "Images available in Minikube:"
-    minikube image ls | grep -E "(hive-metastore|kyuubi-server|spark-engine-iceberg)" || echo "No custom images found in Minikube"
+    minikube image ls | grep -E "(hive-metastore|kyuubi-server|spark-engine-iceberg|kafka-connect-iceberg)" || echo "No custom images found in Minikube"
 }
 
 deploy_infrastructure() {

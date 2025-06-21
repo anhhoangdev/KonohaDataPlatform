@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: postgres-cdc
+  namespace: source-data
+  labels:
+    app: postgres-cdc
+    component: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: postgres-cdc
+  template:
+    metadata:
+      labels:
+        app: postgres-cdc
+        component: database
+    spec:
+      containers:
+        - name: postgres
+          image: local-postgres-cdc:v2
+          imagePullPolicy: Never
+          env:
+            - name: POSTGRES_USER
+              value: cdc_user
+            - name: POSTGRES_PASSWORD
+              value: cdc_pass
+            - name: POSTGRES_DB
+              value: inventory
+            - name: POSTGRES_INITDB_ARGS
+              value: "--encoding=UTF8 --lc-collate=C --lc-ctype=C"
+            # CDC Configuration for Debezium
+            - name: POSTGRES_CONFIG_shared_preload_libraries
+              value: "pg_stat_statements"
+            - name: POSTGRES_CONFIG_wal_level
+              value: "logical"
+            - name: POSTGRES_CONFIG_max_wal_senders
+              value: "4"
+            - name: POSTGRES_CONFIG_max_replication_slots
+              value: "4"
+          ports:
+            - containerPort: 5432
+          # Using custom Postgres image with Northwind database schema
+          # The init.sql script will create the full schema with sample data
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgres-cdc
+  namespace: source-data
+  labels:
+    app: postgres-cdc
+spec:
+  selector:
+    app: postgres-cdc
+  ports:
+    - port: 5432
+      targetPort: 5432 

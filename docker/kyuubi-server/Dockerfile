@@ -1,24 +1,37 @@
-FROM apache/spark:3.5.0
+# Use an official OpenJDK runtime as a parent image
+FROM eclipse-temurin:8-jre-focal
 
-ENV KYUUBI_VERSION=1.10.0
-ENV KYUUBI_HOME=/opt/kyuubi
-ENV SPARK_HOME=/opt/spark
+ENV KYUUBI_HOME /opt/kyuubi
+ENV SPARK_HOME /opt/spark
+ENV SPARK_VERSION 3.5.0
+ENV KYUUBI_VERSION 1.10.0
+ENV PATH $KYUUBI_HOME/bin:$PATH
 
-USER root
+# Install dependencies
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends tini && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
-RUN apt-get update && apt-get install -y openjdk-8-jdk curl wget && rm -rf /var/lib/apt/lists/* && \
-    wget https://downloads.apache.org/kyuubi/kyuubi-${KYUUBI_VERSION}/apache-kyuubi-${KYUUBI_VERSION}-bin.tgz -O /tmp/kyuubi.tgz && \
-    tar -xzf /tmp/kyuubi.tgz -C /opt && \
-    mv /opt/apache-kyuubi-${KYUUBI_VERSION}-bin /opt/kyuubi && \
-    rm /tmp/kyuubi.tgz && \
-    wget https://repo1.maven.org/maven2/org/apache/kyuubi/kyuubi-spark-sql-engine_2.12/1.10.0/kyuubi-spark-sql-engine_2.12-1.10.0.jar -O ${KYUUBI_HOME}/externals/engines/spark/kyuubi-spark-sql-engine.jar
+# Copy pre-downloaded Kyuubi
+COPY downloads/apache-kyuubi-${KYUUBI_VERSION}-bin.tgz /tmp/
 
-ENV PATH="${KYUUBI_HOME}/bin:$PATH"
+# Extract Kyuubi
+RUN tar -xzvf /tmp/apache-kyuubi-${KYUUBI_VERSION}-bin.tgz -C /opt && \
+    mv /opt/apache-kyuubi-${KYUUBI_VERSION}-bin $KYUUBI_HOME && \
+    rm /tmp/*.tgz
 
-# Copy entrypoint script
-COPY entrypoint.sh /opt/entrypoint.sh
-RUN chmod +x /opt/entrypoint.sh
+# Copy pre-downloaded Spark distribution
+COPY downloads/spark-${SPARK_VERSION}-bin-hadoop3.tgz /tmp/
 
-EXPOSE 10009 10099
+# Extract Spark distribution
+RUN tar -xzvf /tmp/spark-${SPARK_VERSION}-bin-hadoop3.tgz -C /opt && \
+    mv /opt/spark-${SPARK_VERSION}-bin-hadoop3 $SPARK_HOME && \
+    rm /tmp/*.tgz
 
-ENTRYPOINT ["/opt/entrypoint.sh"]
+# Copy entrypoint
+COPY kyuubi-server/entrypoint.sh /
+RUN chmod +x /entrypoint.sh
+
+ENTRYPOINT ["/usr/bin/tini", "--", "/entrypoint.sh"]
+CMD ["start-kyuubi"]

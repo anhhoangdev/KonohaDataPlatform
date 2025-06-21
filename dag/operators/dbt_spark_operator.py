@@ -168,14 +168,17 @@ class DbtSparkOperator(BaseOperator):
         """Check if command supports --threads parameter"""
         return self.command in ['run', 'test', 'compile', 'seed', 'snapshot']
 
-    def _create_profiles_yaml(self) -> str:
-        """Generate DBT profiles.yml content with Kyuubi integration"""
+    def _create_profiles_yaml(self, model_name: str) -> str:
+        """Generate DBT profiles.yml content with Kyuubi integration and model-aware pod names"""
         spark_config_lines = [
-            f'spark.kubernetes.executor.podNamePrefix: "dbt-spark-{{{{dag_id}}}}"',
-            f'spark.app.name: "${{{{dag_id}}}}-${{{{task_id}}}}"'
+            # Driver & executor pod names. Spark will append -driver / -exec-x automatically for executors.
+            f'spark.kubernetes.driver.pod.name: "dbt-spark-{model_name}-driver"',
+            f'spark.kubernetes.executor.podNamePrefix: "dbt-spark-{model_name}"',
+            f'spark.app.name: "dbt-spark-{model_name}"'
         ]
         if self.num_executors:
             spark_config_lines.append(f'spark.executor.instances: "{self.num_executors}"')
+            spark_config_lines.append('spark.dynamicAllocation.enabled: "false"')
 
         spark_config_str = '\n        '.join([f'"{key}": {value}' for conf in spark_config_lines for key, value in [conf.split(': ', 1)]])
         
@@ -278,7 +281,16 @@ analytics:
         
         # Build the DBT command
         dbt_cmd = self._build_dbt_command()
-        profiles_content = self._create_profiles_yaml()
+        model_name = self.task_id.replace('_', '-')
+        if self.select:
+            model_name = self.select.replace('tag:', '').replace(' ', '-')
+        elif hasattr(self, 'models') and self.models:
+            if isinstance(self.models, list):
+                model_name = '-'.join(self.models[:2])  # Limit to 2 models for name length
+            else:
+                model_name = str(self.models)
+        
+        profiles_content = self._create_profiles_yaml(model_name)
         
         # Create the execution script with Kyuubi integration
         execution_script = f'''
@@ -336,16 +348,6 @@ echo "🔍 Spark pods should have been cleaned up automatically"
         # Prepare environment
         env_vars = self._prepare_environment(context)
         
-        # Create pod name with model context
-        model_name = "unknown"
-        if self.select:
-            model_name = self.select.replace('tag:', '').replace(' ', '-')
-        elif hasattr(self, 'models') and self.models:
-            if isinstance(self.models, list):
-                model_name = '-'.join(self.models[:2])  # Limit to 2 models for name length
-            else:
-                model_name = str(self.models)
-        
         pod_name = f"dbt-{model_name}-{context['ts_nodash'].lower()}"
         
         logger.info(f"Executing DBT command in pod: {pod_name}")
@@ -368,7 +370,7 @@ echo "🔍 Spark pods should have been cleaned up automatically"
             is_delete_operator_pod=True,
             get_logs=True,
             log_events_on_failure=True,
-            do_xcom_push=True,
+            do_xcom_push=False,
             startup_timeout_seconds=300,
             **self.pod_override
         )

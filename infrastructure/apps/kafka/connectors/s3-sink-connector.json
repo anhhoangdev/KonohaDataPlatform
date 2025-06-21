@@ -1,0 +1,29 @@
+{
+  "name": "cdc-s3-avro-sink",
+  "config": {
+    "connector.class": "io.confluent.connect.s3.S3SinkConnector",
+    "tasks.max": "1",
+    "topics": "customers,orders,products",
+    "s3.bucket.name": "raw-zone",
+    "s3.region": "us-east-1",
+    "store.url": "http://minio.kyuubi.svc.cluster.local:9000",
+    "aws.access.key.id": "minioadmin",
+    "aws.secret.access.key": "minioadmin123",
+    "s3.path.style.access.enabled": "true",
+    "storage.class": "io.confluent.connect.s3.storage.S3Storage",
+    "partitioner.class": "io.confluent.connect.storage.partitioner.DefaultPartitioner",
+    "format.class": "io.confluent.connect.s3.format.avro.AvroFormat",
+    "schema.compatibility": "NONE",
+    "flush.size": "10",
+    "key.converter": "io.confluent.connect.avro.AvroConverter",
+    "value.converter": "io.confluent.connect.avro.AvroConverter",
+    "key.converter.schema.registry.url": "http://schema-registry.kafka-platform.svc.cluster.local:8081",
+    "value.converter.schema.registry.url": "http://schema-registry.kafka-platform.svc.cluster.local:8081",
+    "key.converter.enhanced.avro.schema.support": "true",
+    "value.converter.enhanced.avro.schema.support": "true",
+    "enhanced.avro.schema.support": "true",
+    "avro.codec": "snappy",
+    "s3.part.retries": "3",
+    "s3.retry.backoff.ms": "200"
+  }
+} 

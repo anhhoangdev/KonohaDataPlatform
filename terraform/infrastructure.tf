@@ -22,6 +22,28 @@ resource "kubernetes_namespace" "kyuubi" {
   }
 }
 
+# Kafka namespace (for brokers, connect, akhq)
+resource "kubernetes_namespace" "kafka" {
+  metadata {
+    name = "kafka"
+    labels = {
+      "app.kubernetes.io/name"       = "kafka"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+}
+
+# Source-data namespace (upstream Postgres or other systems)
+resource "kubernetes_namespace" "source_data" {
+  metadata {
+    name = "source-data"
+    labels = {
+      "app.kubernetes.io/name"       = "source-data"
+      "app.kubernetes.io/managed-by" = "terraform"
+    }
+  }
+}
+
 # Create service accounts
 resource "kubernetes_service_account" "vault" {
   metadata {

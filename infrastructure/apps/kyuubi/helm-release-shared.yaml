@@ -189,9 +189,9 @@ spec:
         # Default resource settings - Higher for shared deployment
         spark.app.name dbt-shared
         spark.executor.instances 1
-        spark.executor.memory 12g
+        spark.executor.memory 2g
         spark.executor.cores 2
-        spark.driver.memory 5g
+        spark.driver.memory 2g
         spark.driver.memoryOverhead 1g
         spark.sql.autoBroadcastJoinThreshold 52428800
         spark.kubernetes.executor.request.cores 1800m
@@ -203,7 +203,7 @@ spec:
         spark.kubernetes.executor.node.selector.karpenter.k8s.aws/instance-category r
 
         # Dynamic allocation - Higher limits for shared
-        spark.dynamicAllocation.enabled true
+        spark.dynamicAllocation.enabled false
         spark.shuffle.service.enabled false
         spark.dynamicAllocation.minExecutors 0
         spark.dynamicAllocation.maxExecutors 9

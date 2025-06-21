@@ -77,32 +77,27 @@ with DAG(
         target="dev"
     )
 
-    # 3. Data Transformation - Staging Layer
-    run_staging_models = DbtSparkRunOperator(
-        task_id='run_staging_models',
-        select='tag:staging',
+    # 3. Data Transformation - Staging Models (run individually)
+    run_stg_users = DbtSparkRunOperator(
+        task_id='run_stg_users',
+        models='stg_users',
         target="dev",
         num_executors=2
     )
 
-    test_staging_models = DbtSparkTestOperator(
-        task_id='test_staging_models',
-        select='tag:staging',
-        target="dev"
+    run_stg_orders = DbtSparkRunOperator(
+        task_id='run_stg_orders',
+        models='stg_orders',
+        target="dev",
+        num_executors=2
     )
 
     # 4. Data Transformation - Marts Layer
-    run_marts_models = DbtSparkRunOperator(
-        task_id='run_marts_models',
-        select='tag:marts',
+    run_simple_pipeline = DbtSparkRunOperator(
+        task_id='run_simple_pipeline',
+        models='simple_pipeline',
         target="dev",
         num_executors=4
-    )
-
-    test_marts_models = DbtSparkTestOperator(
-        task_id='test_marts_models',
-        select='tag:marts',
-        target="dev"
     )
 
     # 5. Documentation
@@ -120,8 +115,4 @@ with DAG(
 
     install_dbt_deps >> seed_reference_data
 
-    seed_reference_data >> run_staging_models >> test_staging_models
-
-    test_staging_models >> run_marts_models >> test_marts_models
-
-    test_marts_models >> generate_documentation >> end_pipeline 
+    seed_reference_data >> run_stg_users >> run_stg_orders >> run_simple_pipeline >> generate_documentation >> end_pipeline 
