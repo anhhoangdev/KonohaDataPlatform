@@ -128,7 +128,7 @@ cd ..
 # This script will:
 # 1. Initialize and apply Terraform configuration
 # 2. Deploy HashiCorp Vault in development mode
-# 3. Install FluxCD for GitOps
+# 3. Install FluxCD for GitOps (via Helm chart)
 # 4. Configure Vault authentication and policies
 # 5. Create initial secrets for Kyuubi
 ```

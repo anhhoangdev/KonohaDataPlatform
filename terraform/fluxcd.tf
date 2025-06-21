@@ -1,49 +1,35 @@
 # Phase 2: FluxCD Bootstrap Configuration
 # This file bootstraps FluxCD and handles GitOps deployment
 
-# Install FluxCD using the official CLI (recommended method)
-resource "null_resource" "flux_install" {
+# Install FluxCD using the official Helm chart
+resource "helm_release" "flux" {
   count = var.enable_fluxcd ? 1 : 0
 
-  # Depend on basic infrastructure
+  name       = "flux"
+  repository = "https://fluxcd-community.github.io/helm-charts"
+  chart      = "flux2"
+  version    = "2.9.0"
+  namespace  = local.flux_namespace
+  create_namespace = true
+
+  values = [
+    yamlencode({
+      installCRDs = true
+    })
+  ]
+
   depends_on = [
     kubernetes_namespace.vault,
     kubernetes_namespace.kyuubi,
     kubernetes_service_account.vault,
     kubernetes_service_account.kyuubi
   ]
-
-  provisioner "local-exec" {
-    command = <<-EOT
-      # Check if FluxCD is already installed
-      if ! kubectl get ns flux-system &>/dev/null; then
-        echo "Installing FluxCD..."
-        flux install \
-          --namespace=flux-system \
-          --network-policy=false \
-          --components-extra=image-reflector-controller,image-automation-controller \
-          --force
-      else
-        echo "FluxCD is already installed"
-      fi
-    EOT
-  }
-
-  provisioner "local-exec" {
-    when    = destroy
-    command = "flux uninstall --namespace=flux-system --silent || true"
-  }
-
-  triggers = {
-    # Force recreation if FluxCD version changes
-    flux_version = "v2.2.2"
-  }
 }
 
 # Wait for FluxCD to be ready and CRDs to be available
 resource "time_sleep" "wait_for_flux" {
   count = var.enable_fluxcd ? 1 : 0
-  depends_on = [null_resource.flux_install]
+  depends_on = [helm_release.flux]
   create_duration = "120s"  # Increased wait time for CRDs
 }
 
@@ -81,7 +67,7 @@ resource "null_resource" "verify_flux_crds" {
 
   triggers = {
     # Re-run if FluxCD is reinstalled
-    flux_install_id = null_resource.flux_install[0].id
+    flux_release_id = helm_release.flux[0].id
   }
 }
 

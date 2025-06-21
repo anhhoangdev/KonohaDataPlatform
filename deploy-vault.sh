@@ -451,12 +451,15 @@ deploy_flux() {
     log_header "PHASE 2: DEPLOYING FLUXCD"
     
     # Install FluxCD
-    log_info "Installing FluxCD components..."
-    if ! kubectl get ns flux-system &>/dev/null; then
-        flux install \
-            --namespace=flux-system \
-            --network-policy=false \
-            --components-extra=image-reflector-controller,image-automation-controller
+    log_info "Installing FluxCD components via Helm..."
+    if ! kubectl get ns ${FLUX_NAMESPACE} &>/dev/null; then
+        helm repo add fluxcd-community https://fluxcd-community.github.io/helm-charts >/dev/null 2>&1 || true
+        helm upgrade --install flux fluxcd-community/flux2 \
+            --namespace=${FLUX_NAMESPACE} \
+            --create-namespace \
+            --set installCRDs=true \
+            --set imageAutomationController.create=true \
+            --set imageReflectionController.create=true
     else
         log_info "FluxCD is already installed"
     fi
