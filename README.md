@@ -1,3 +1,35 @@
+# Konoha Data Platform
+
+> **An all-in-one, cloud-native analytics stack—Data Lake, Streaming, Orchestration and Observability—deployed with a single command on your laptop.**  
+> Built with HashiCorp Vault, FluxCD GitOps, Apache Iceberg, Kyuubi and a curated suite of open-source services, Konoha transforms any vanilla Kubernetes cluster into a fully-featured data platform in < 15 minutes.
+
+![Konoha Data Platform Diagram](imgs/Konoha%20Data%20Platform.png)
+
+---
+
+## 🌪️ Naruto-Style TL;DR
+
+> Spin up a full-blown data village in <15 minutes.  
+> Spark-powered compute = Nine-Tails chakra. Airflow = Hokage mission board.  
+> Vault seals your secrets; Trino's Byakugan queries everything. Believe it!
+
+| Naruto Vibes | Real-World Tech | What It Does |
+|--------------|----------------|--------------|
+| **🐉 Chakra Forge Engine** | Apache Kyuubi + Spark | Transforms raw data into high-energy Iceberg tables |
+| **👥 Semantic Squad** | DBT | Builds & tests data models like genin polishing jutsu |
+| **👁️ Sharingan Stream** | Debezium + Kafka | Captures DB changes in real-time event streams |
+| **📜 Hokage Mission Board** | Apache Airflow | Orchestrates workflows & DAGs |
+| **👓 Byakugan Lens** | Trino | Federated SQL with 360° visibility |
+| **🪞 Mirror of Truth** | Metabase | Dashboards & KPIs—no genjutsu, just facts |
+| **💎 Crystallized Chakra Pool** | MinIO (S3) | Object storage for raw/refined data |
+| **📚 Scroll Library** | Hive Metastore | Central schema registry |
+| **🔐 Sealing Jutsu** | Vault + Keycloak | Secrets & access control |
+| **🌳 Wood-Style Infra** | Terraform + Minikube | Provisions the whole village from code |
+
+*Star the repo & join the village!* 🏯✨
+
+---
+
 # LocalDataPlatform
 
 A comprehensive data platform built on Kubernetes with HashiCorp Vault for secrets management, FluxCD for GitOps, and support for Kyuubi, Hive Metastore, and other data tools.
