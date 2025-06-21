@@ -1,0 +1,54 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino-worker
+  labels:
+    app: trino
+    role: worker
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: trino
+      role: worker
+  template:
+    metadata:
+      labels:
+        app: trino
+        role: worker
+    spec:
+      containers:
+        - name: trino
+          image: trinodb/trino:438
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /etc/trino
+            - name: trino-jks
+              mountPath: /etc/trino/ssl
+              readOnly: true
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Dnode.id=$(NODE_ID)"
+      volumes:
+        - name: config
+          configMap:
+            name: trino-config-worker
+            items:
+              - key: node.properties
+                path: node.properties
+              - key: jvm.config
+                path: jvm.config
+              - key: config.properties
+                path: config.properties
+              - key: log.properties
+                path: log.properties
+        - name: trino-jks
+          secret:
+            secretName: trino-jks 

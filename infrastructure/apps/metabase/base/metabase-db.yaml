@@ -1,0 +1,50 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase-db
+  labels:
+    app: metabase-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metabase-db
+  template:
+    metadata:
+      labels:
+        app: metabase-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:15
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: POSTGRES_DB
+              value: "metabase_db"
+            - name: POSTGRES_USER
+              value: "metabase"
+            - name: POSTGRES_PASSWORD
+              value: "metabase123"
+          ports:
+            - containerPort: 5432
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metabase-db
+  labels:
+    app: metabase-db
+spec:
+  selector:
+    app: metabase-db
+  ports:
+    - port: 5432
+      targetPort: 5432
+      protocol: TCP
+  type: ClusterIP 

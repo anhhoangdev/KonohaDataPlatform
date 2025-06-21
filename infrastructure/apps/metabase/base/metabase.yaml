@@ -1,0 +1,79 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: metabase
+  labels:
+    app: metabase
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: metabase
+  template:
+    metadata:
+      labels:
+        app: metabase
+    spec:
+      initContainers:
+      - name: fetch-starburst-driver
+        image: curlimages/curl:8.7.1
+        command:
+        - sh
+        - -c
+        - |
+          set -e
+          DRIVER_VERSION=6.1.0       # works with Metabase ≥ v0.50
+          curl -fL \
+            https://github.com/starburstdata/metabase-driver/releases/download/${DRIVER_VERSION}/starburst-${DRIVER_VERSION}.metabase-driver.jar \
+            -o /plugins/starburst.metabase-driver.jar
+          echo "✓ driver downloaded"
+          unzip -t /plugins/starburst.metabase-driver.jar >/dev/null
+        volumeMounts:
+        - name: plugins
+          mountPath: /plugins
+      containers:
+        - name: metabase
+          image: metabase/metabase:v0.50.27
+          imagePullPolicy: IfNotPresent
+          volumeMounts:
+            - name: trino-keystore
+              mountPath: /etc/metabase/ssl
+              readOnly: true
+            - name: plugins
+              mountPath: /plugins
+          env:
+            - name: MB_DB_TYPE
+              value: "postgres"
+            - name: MB_DB_DBNAME
+              value: "metabase_db"
+            - name: MB_DB_HOST
+              value: "metabase-db"
+            - name: MB_DB_PORT
+              value: "5432"
+            - name: MB_DB_USER
+              value: "metabase"
+            - name: MB_DB_PASS
+              value: "metabase123"
+          ports:
+            - containerPort: 3000
+      volumes:
+        - name: trino-keystore
+          secret:
+            secretName: trino-keystore
+        - name: plugins
+          emptyDir: {}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: metabase
+  labels:
+    app: metabase
+spec:
+  selector:
+    app: metabase
+  ports:
+    - port: 3000
+      targetPort: 3000
+      protocol: TCP
+  type: ClusterIP

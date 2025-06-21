@@ -73,6 +73,7 @@ setup_minikube() {
         --mount \
         --mount-type=sshfs \
         --mount-string="$HOME/Documents/LocalDataPlatform:/hosthome/anhhoangdev/Documents/LocalDataPlatform" \
+        --embed-certs \
         
         # Enable required addons
     log_info "Enabling Minikube addons..."

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: metabase
+  labels:
+    app.kubernetes.io/name: metabase
+    app.kubernetes.io/part-of: data-platform 
