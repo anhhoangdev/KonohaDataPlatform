@@ -110,6 +110,49 @@ variable "kyuubi_secrets" {
         kyuubi_log_level      = "INFO"
       }
     }
+    # 🔐 MinIO credentials used by MinIO itself, Hive Metastore, and Kyuubi
+    # These values are ONLY intended for local development. Override them in
+    # terraform.tfvars (or via CI secrets) for non-dev environments.
+    minio = {
+      path = "kyuubi/minio"
+      data = {
+        access_key = "minioadmin"
+        secret_key = "minioadmin123"
+        endpoint   = "http://minio:9000"
+      }
+    }
+    # 📊 Metabase internal Postgres database credentials
+    metabase = {
+      path = "kyuubi/metabase"
+      data = {
+        db_name  = "metabase_db"
+        username = "metabase"
+        password = "metabase123"
+        host     = "metabase-db"
+        port     = "5432"
+      }
+    }
+    # 🔑 Keycloak administrator credentials (dev only)
+    keycloak = {
+      path = "kyuubi/keycloak"
+      data = {
+        username = "admin"
+        password = "admin123"
+      }
+    }
+    # ☁️ Airflow credentials (webserver/scheduler) and backend Postgres
+    airflow = {
+      path = "kyuubi/airflow"
+      data = {
+        postgres_db       = "airflow"
+        postgres_user     = "airflow"
+        postgres_password = "airflow"
+        postgres_host     = "airflow-postgresql"
+        postgres_port     = "5432"
+        sql_alchemy_conn  = "postgresql+psycopg2://airflow:airflow@airflow-postgresql:5432/airflow"
+        fernet_key        = "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+      }
+    }
   }
   sensitive = true
 }
