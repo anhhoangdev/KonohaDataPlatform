@@ -34,7 +34,7 @@ SPARK_ENGINE_ICEBERG_IMAGE="spark-engine-iceberg:3.5.0-1.4.2"
 POSTGRES_CDC_IMAGE="postgres-cdc:15"
 
 DBT_SPARK_IMAGE="dbt-spark:latest"
-KAFKA_CONNECT_FULL_IMAGE="local-kafka-connect-full:v10"
+KAFKA_CONNECT_FULL_IMAGE="local-kafka-connect-full:latest"
 
 # Docker image directories
 DOCKER_BASE_DIR="docker"
@@ -760,6 +760,30 @@ deploy_airflow() {
     log_success "✅ Airflow deployed successfully"
 }
 
+# Phase 8: Deploy Grafana
+deploy_grafana() {
+    log_header "PHASE 8: DEPLOYING GRAFANA"
+
+    # Deploy Grafana via GitOps
+    log_info "Deploying Grafana via GitOps..."
+    if [ -d "infrastructure/apps/grafana" ]; then
+        kubectl apply -k infrastructure/apps/grafana/ --timeout=600s
+
+        # Wait for Grafana pod
+        log_info "⏳ Waiting for Grafana to be ready..."
+        for i in {1..60}; do
+            if kubectl get pods -n grafana -l app=grafana &>/dev/null; then
+                kubectl wait --for=condition=ready pod -l app=grafana -n grafana --timeout=300s && break
+            fi
+            sleep 5
+        done
+    else
+        log_warning "Grafana manifests not found at infrastructure/apps/grafana"
+    fi
+
+    log_success "✅ Grafana deployed successfully"
+}
+
 # Setup access and ingress
 setup_access() {
     log_header "SETTING UP ACCESS"
@@ -846,6 +870,11 @@ show_status() {
     kubectl get pods -n ${AIRFLOW_NAMESPACE} 2>/dev/null || echo "  Airflow: Not deployed"
     echo ""
     
+    # Show Grafana status
+    echo "📈 Grafana (grafana):"
+    kubectl get pods -n grafana 2>/dev/null || echo "  Grafana: Not deployed"
+    echo ""
+    
     # Show services
     echo "🌐 Services:"
     kubectl get svc --all-namespaces | grep -E "(vault|kyuubi|ingress|hive|minio|mariadb|airflow)" 2>/dev/null || echo "  No services found"
@@ -884,6 +913,7 @@ show_next_steps() {
     echo "  ✅ Phase 5: Hive Metastore (metadata)"
     echo "  ✅ Phase 6: Kyuubi (Spark SQL with Iceberg)"
     echo "  ✅ Phase 7: Airflow (workflow orchestration)"
+    echo "  ✅ Phase 8: Grafana (monitoring UI)"
     echo ""
     echo "🛠️  Test Kafka and Iceberg Functionality:"
     echo "  • Check Kafka: kubectl get pods -n kafka-platform"
@@ -967,7 +997,7 @@ cleanup() {
     flux uninstall --namespace=flux-system --silent || true
     
     # Clean up namespaces (remove duplicates since MinIO and MariaDB are in kyuubi namespace)
-    local namespaces_to_delete=(${VAULT_NAMESPACE} ${FLUX_NAMESPACE} ${KYUUBI_NAMESPACE} kafka-platform source-data ${INGRESS_NAMESPACE} vault-secrets-operator-system)
+    local namespaces_to_delete=(${VAULT_NAMESPACE} ${FLUX_NAMESPACE} ${KYUUBI_NAMESPACE} kafka-platform source-data ${INGRESS_NAMESPACE} vault-secrets-operator-system grafana)
     for ns in "${namespaces_to_delete[@]}"; do
         if kubectl get namespace $ns &> /dev/null; then
             log_info "Deleting namespace: $ns"
@@ -995,6 +1025,7 @@ main() {
             deploy_hive
             deploy_kyuubi
             deploy_airflow
+            deploy_grafana
             setup_access
             show_status
             show_next_steps
@@ -1065,6 +1096,7 @@ main() {
             echo "    • Phase 5: Hive Metastore (metadata)"
             echo "    • Phase 6: Kyuubi (Spark SQL with Iceberg)"
             echo "    • Phase 7: Airflow (workflow orchestration)"
+            echo "    • Phase 8: Grafana (monitoring UI)"
             echo "  build-images  - Build only the custom Docker images"
             echo "  verify-images - Verify that all custom images are available"
             echo "  cleanup       - Clean up all Kubernetes resources"

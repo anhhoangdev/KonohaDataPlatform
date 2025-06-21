@@ -29,7 +29,7 @@ spec:
             echo "Kafka is ready!"
       containers:
       - name: kafka-connect
-        image: local-kafka-connect-full:v12
+        image: local-kafka-connect-full:latest
         imagePullPolicy: Never
         env:
         - name: CONNECT_BOOTSTRAP_SERVERS
