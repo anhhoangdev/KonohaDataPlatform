@@ -65,13 +65,5 @@ docker/downloads/
 /dbt/dbt_packages/
 /dbt/logs/
 /dbt/target/
-docker/dbt-spark/
-docker/hive-metastore/
-docker/kyuubi-server/
-docker/spark-engine-iceberg/
-docker/hive-metastore/Dockerfile
-docker/kyuubi-server/Dockerfile
-docker/spark-engine-iceberg/Dockerfile
-docker/hive-metastore/Dockerfile
-docker/kyuubi-server/Dockerfile
-docker/spark-engine-iceberg/Dockerfile
+__pycache__/
+dbt/profiles

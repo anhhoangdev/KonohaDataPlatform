@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: akhq
+  namespace: kafka-platform
+  labels:
+    app: akhq
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: akhq
+  template:
+    metadata:
+      labels:
+        app: akhq
+    spec:
+      containers:
+        - name: akhq
+          image: tchiotludo/akhq:0.24.0
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: AKHQ_CONFIGURATION
+              value: |
+                akhq:
+                  server:
+                    servlet:
+                      context-path: /
+                    port: 8080
+                  connections:
+                    local:
+                      properties:
+                        bootstrap.servers: "kafka:9092"
+                      schema-registry:
+                        url: "http://schema-registry:8081"
+                      connect:
+                        - name: "kafka-connect"
+                          url: "http://kafka-connect:8083"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: akhq
+  namespace: kafka-platform
+  labels:
+    app: akhq
+spec:
+  selector:
+    app: akhq
+  ports:
+    - port: 8080
+      targetPort: 8080
+      protocol: TCP
+  type: ClusterIP 

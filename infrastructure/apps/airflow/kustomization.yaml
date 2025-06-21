@@ -61,6 +61,31 @@ patches:
         value:
           name: SPARK_PORT
           value: "10009"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__LOGGING__REMOTE_LOGGING
+          value: "True"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__LOGGING__LOG_HANDLER
+          value: "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER
+          value: "s3://airflow-logs"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID
+          value: "aws_default"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__AWS__ENDPOINT_URL
+          value: "http://minio.kyuubi.svc.cluster.local:9000"
       - op: replace
         path: /spec/template/spec/volumes/0
         value:
@@ -112,6 +137,31 @@ patches:
         value:
           name: SPARK_PORT
           value: "10009"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__LOGGING__REMOTE_LOGGING
+          value: "True"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__LOGGING__REMOTE_BASE_LOG_FOLDER
+          value: "s3://airflow-logs"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__LOGGING__REMOTE_LOG_CONN_ID
+          value: "aws_default"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__LOGGING__LOG_HANDLER
+          value: "airflow.providers.amazon.aws.log.s3_task_handler.S3TaskHandler"
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: AIRFLOW__AWS__ENDPOINT_URL
+          value: "http://minio.kyuubi.svc.cluster.local:9000"
       - op: remove
         path: /spec/template/spec/initContainers
       - op: remove
@@ -134,6 +184,12 @@ patches:
                 "containers": [
                   {
                     "name": "base",
+                    "env": [
+                      {
+                        "name": "AIRFLOW__AWS__ENDPOINT_URL",
+                        "value": "http://minio.kyuubi.svc.cluster.local:9000"
+                      }
+                    ],
                     "volumeMounts": [
                       {
                         "name": "dag-repo",

@@ -1,0 +1,76 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: schema-registry
+  namespace: kafka-platform
+  labels:
+    app: schema-registry
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: schema-registry
+  template:
+    metadata:
+      labels:
+        app: schema-registry
+    spec:
+      initContainers:
+      - name: wait-for-kafka
+        image: busybox:1.35
+        command: ['sh', '-c']
+        args:
+          - |
+            echo "Waiting for Kafka to be ready..."
+            until nc -z kafka 9092; do
+              echo "Kafka not ready, waiting..."
+              sleep 5
+            done
+            echo "Kafka is ready!"
+      containers:
+      - name: schema-registry
+        image: bitnami/schema-registry:7.4.1
+        env:
+        - name: SCHEMA_REGISTRY_KAFKA_BROKERS
+          value: "PLAINTEXT://kafka:9092"
+        - name: SCHEMA_REGISTRY_LISTENERS
+          value: "http://0.0.0.0:8081"
+        - name: SCHEMA_REGISTRY_LOG_LEVEL
+          value: "INFO"
+        ports:
+        - containerPort: 8081
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "250m"
+          limits:
+            memory: "1Gi"
+            cpu: "500m"
+        readinessProbe:
+          httpGet:
+            path: /subjects
+            port: 8081
+          initialDelaySeconds: 60
+          periodSeconds: 10
+          timeoutSeconds: 5
+        livenessProbe:
+          httpGet:
+            path: /subjects
+            port: 8081
+          initialDelaySeconds: 90
+          periodSeconds: 30
+          timeoutSeconds: 10
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: schema-registry
+  namespace: kafka-platform
+  labels:
+    app: schema-registry
+spec:
+  selector:
+    app: schema-registry
+  ports:
+  - port: 8081
+    targetPort: 8081 

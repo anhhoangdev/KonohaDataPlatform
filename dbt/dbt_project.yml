@@ -6,12 +6,12 @@ config-version: 2
 profile: 'analytics'
 
 # These configurations specify where dbt should look for different types of files.
-model-paths: ["models"]
-analysis-paths: ["analyses"]
-test-paths: ["tests"]
-seed-paths: ["seeds"]
-macro-paths: ["macros"]
-snapshot-paths: ["snapshots"]
+model-paths: ["analytics/models"]
+analysis-paths: ["analytics/analyses"]
+test-paths: ["analytics/tests"]
+seed-paths: ["analytics/seeds"]
+macro-paths: ["analytics/macros"]
+snapshot-paths: ["analytics/snapshots"]
 
 clean-targets:
   - "target"

@@ -99,7 +99,8 @@ spec:
           name: airflow-dags
           defaultMode: 0644
       - name: dag-repo
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: airflow-dag-pvc
       - name: pod-template
         configMap:
           name: airflow-pod-template
@@ -174,7 +175,8 @@ data:
           name: airflow-dags
           defaultMode: 0644
       - name: dag-repo
-        emptyDir: {}
+        persistentVolumeClaim:
+          claimName: airflow-dag-pvc
       restartPolicy: Never
 ---
 # ConfigMap to store DAG files that can be shared between scheduler and task pods

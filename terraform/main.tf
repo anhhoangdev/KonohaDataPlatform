@@ -30,15 +30,15 @@ terraform {
 
 # Kubernetes Provider Configuration
 provider "kubernetes" {
-  config_path    = "~/.kube/config"
-  config_context = "minikube"
+  config_path    = var.kubernetes_config_path
+  config_context = var.kubernetes_context
 }
 
 # Helm Provider Configuration
 provider "helm" {
   kubernetes {
-    config_path    = "~/.kube/config"
-    config_context = "minikube"
+    config_path    = var.kubernetes_config_path
+    config_context = var.kubernetes_context
   }
 }
 

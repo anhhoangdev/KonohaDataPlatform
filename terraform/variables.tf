@@ -239,4 +239,17 @@ variable "enable_monitoring" {
   description = "Enable monitoring components"
   type        = bool
   default     = false
+}
+
+# Kubernetes Configuration Variables
+variable "kubernetes_context" {
+  description = "Kubernetes context to use for deployment"
+  type        = string
+  default     = "minikube"
+}
+
+variable "kubernetes_config_path" {
+  description = "Path to kubeconfig file"
+  type        = string
+  default     = "~/.kube/config"
 } 

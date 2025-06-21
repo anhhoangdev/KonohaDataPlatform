@@ -13,6 +13,12 @@ resources:
 - mariadb
 - minio
 
+# Streaming platform (depends on storage)
+- kafka
+
+# Source database for CDC
+- postgres-cdc
+
 # Application components (depend on database and storage)
 - hive-metastore
 - kyuubi
