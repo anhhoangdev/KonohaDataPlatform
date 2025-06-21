@@ -42,6 +42,11 @@ A comprehensive data platform built on Kubernetes with HashiCorp Vault for secre
 - [Configuration](#-configuration)
 - [Management Commands](docs/management-commands.md)
 - [Troubleshooting](docs/troubleshooting.md)
+- [DAGs Guide](docs/dags.md)
+- [DBT in Kyuubi](docs/dbt.md)
+- [Kyuubi Guide](docs/kyuubi.md)
+- [Iceberg Conventions](docs/iceberg.md)
+- [Change Data Capture](docs/cdc.md)
 - [Security Notes](#-security-notes)
 - [Contributing](#-contributing)
 - [License](#-license)
@@ -50,13 +55,22 @@ A comprehensive data platform built on Kubernetes with HashiCorp Vault for secre
 
 ## 🏗️ Architecture
 
-- **Kubernetes**: Minikube for local development
-- **HashiCorp Vault**: Centralized secrets management
-- **FluxCD**: GitOps continuous deployment
-- **NGINX Ingress**: Load balancing and ingress
-- **Kyuubi**: Distributed SQL query engine
-- **Hive Metastore**: Metadata management
-- **Terraform**: Infrastructure as Code
+- **Kubernetes** (Minikube) – base chakra network
+- **Terraform** – Wood-Style infra jutsu
+- **Vault + Keycloak** – Sealing & access contracts
+- **FluxCD** – GitOps shadow clones keeping cluster in sync
+- **NGINX Ingress** – Village gates / load balancer
+- **Debezium + Kafka + Schema Registry** – Sharingan change stream
+- **Kafka Connect (Iceberg sink)** – routes events into the lake
+- **MinIO (S3)** – Crystallized chakra object store
+- **Hive Metastore** – Scroll library of schemas
+- **Apache Iceberg** – ACID data lake tables
+- **Apache Kyuubi + Spark** – Chakra Forge compute engine
+- **DBT (inside Kyuubi pods)** – Semantic Squad for model builds
+- **Apache Airflow** – Hokage mission board orchestrating workflows
+- **Trino** – Byakugan SQL lens across everything
+- **Metabase** – Mirror of Truth dashboards
+- **Grafana** – Chakra flow observability and alerts
 
 ## 📋 Prerequisites
 
@@ -103,8 +117,8 @@ A comprehensive data platform built on Kubernetes with HashiCorp Vault for secre
 
 ### System Requirements
 
-- **CPU**: 4+ cores recommended
-- **Memory**: 8GB+ RAM
+- **CPU**: 12+ cores recommended
+- **Memory**: 32GB+ RAM
 - **Disk**: 20GB+ free space
 - **OS**: Linux (Ubuntu 20.04+ recommended)
 
