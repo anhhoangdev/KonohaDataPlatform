@@ -1,4 +1,4 @@
-p# DBT inside Kyuubi 🐉
+# DBT inside Kyuubi 🐉
 
 DBT jobs run *inside* Kyuubi pods (two flavours: USER and SERVER share-level). The dbt image `dbt-spark:latest` is bundled into those pods, so no separate deployment is needed.
 
@@ -11,4 +11,4 @@ DBT_KYUUBI_URL=$Kyuubi_URL dbt run
 ```
 
 ## Secrets
-DBT profiles are generated at runtime from Vault secrets mounted to `/etc/dbt/credentials.yml` inside the od. 
+DBT profiles are generated at runtime from Vault secrets mounted to `/etc/dbt/credentials.yml` inside the pod. 
