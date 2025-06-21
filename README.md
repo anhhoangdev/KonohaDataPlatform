@@ -32,24 +32,23 @@
 
 ---
 ## Table of Contents
--
--- [Architecture](#-architecture)
--- [Prerequisites](#-prerequisites)
--- [Quick Start](#-quick-start-end-to-end-deployment)
--- [Project Structure](#-project-structure)
--- [Configuration](#-configuration)
--- [Security Notes](#-security-notes)
--- [Contributing](#-contributing)
--- [License](#-license)
--- [Support](#-support)
--- [Full Documentation Index](docs/00-introduction.md)
-+
-+Skip the scroll—hit the docs:
-+
-+• [`00-introduction`](docs/00-introduction.md) – why & what  
-+• [`01-quick-start`](docs/01-quick-start.md) – deploy in 15 min  
-+• [`architecture/`](docs/architecture/) – design deep-dives  
-+• [`components/`](docs/components/) – per-service guides  
+- [Architecture](#-architecture)
+- [Prerequisites](#-prerequisites)
+- [Quick Start](#-quick-start-end-to-end-deployment)
+- [Project Structure](#-project-structure)
+- [Configuration](#-configuration)
+- [Security Notes](#-security-notes)
+- [Contributing](#-contributing)
+- [License](#-license)
+- [Support](#-support)
+- [Full Documentation Index](docs/00-introduction.md)
+
+Skip the scroll—hit the docs:
+
+- [`00-introduction`](docs/00-introduction.md) – why & what  
+- [`01-quick-start`](docs/01-quick-start.md) – deploy in 15 min  
+- [`architecture/`](docs/architecture/) – design deep-dives  
+- [`components/`](docs/components/) – per-service guides  
 
 ## 🏗️ Architecture
 
