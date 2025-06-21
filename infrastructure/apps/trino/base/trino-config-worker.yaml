@@ -1,0 +1,25 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trino-config-worker
+  labels:
+    app: trino
+    role: worker
+
+data:
+  node.properties: |
+    node.environment=production
+    node.data-dir=/data/trino
+  jvm.config: |
+    -Xmx4G
+    -XX:+ExitOnOutOfMemoryError
+  config.properties: |
+    coordinator=false
+    http-server.http.port=8080
+    query.max-memory=4GB
+    query.max-memory-per-node=2GB
+    discovery.uri=http://trino:8080
+    # Accept Presto (legacy) HTTP headers from Metabase
+    protocol.v1.alternate-header-name=Presto
+  log.properties: |
+    io.trino=INFO 

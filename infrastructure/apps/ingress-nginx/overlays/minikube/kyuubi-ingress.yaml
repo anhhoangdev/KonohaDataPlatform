@@ -10,8 +10,9 @@ metadata:
     nginx.ingress.kubernetes.io/force-ssl-redirect: "false"
     nginx.ingress.kubernetes.io/backend-protocol: HTTP
 spec:
+  ingressClassName: nginx
   rules:
-  - host: kyuubi.local
+  - host: kyuubi.localhost
     http:
       paths:
       - path: /shared

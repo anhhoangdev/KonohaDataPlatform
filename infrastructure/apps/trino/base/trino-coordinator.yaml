@@ -1,0 +1,56 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: trino-coordinator
+  labels:
+    app: trino
+    role: coordinator
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: trino
+      role: coordinator
+  template:
+    metadata:
+      labels:
+        app: trino
+        role: coordinator
+    spec:
+      containers:
+        - name: trino
+          image: trinodb/trino:438
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          volumeMounts:
+            - name: config
+              mountPath: /etc/trino
+            - name: trino-jks
+              mountPath: /etc/trino/ssl
+              readOnly: true
+          env:
+            - name: NODE_ID
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: JAVA_TOOL_OPTIONS
+              value: "-Dnode.id=$(NODE_ID)"
+      volumes:
+        - name: config
+          configMap:
+            name: trino-config-coordinator
+            items:
+              - key: node.properties
+                path: node.properties
+              - key: jvm.config
+                path: jvm.config
+              - key: config.properties
+                path: config.properties
+              - key: iceberg.properties
+                path: catalog/iceberg.properties
+              - key: log.properties
+                path: log.properties
+        - name: trino-jks
+          secret:
+            secretName: trino-jks 
