@@ -143,4 +143,4 @@ fi
 
 echo ""
 log_success "✅ Ready for LocalDataPlatform deployment!"
-echo "Run: ./deploy-vault.sh deploy" 
+echo "Run: ./deploy.sh deploy" 

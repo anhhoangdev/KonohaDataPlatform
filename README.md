@@ -128,7 +128,7 @@ git clone https://github.com/anhhoangdev/LocalDataPlatform.git
 cd LocalDataPlatform
 
 # Make scripts executable
-chmod +x deploy-vault.sh
+chmod +x deploy.sh
 chmod +x infrastructure/apps/*/run.sh 2>/dev/null || true
 ```
 
@@ -165,7 +165,7 @@ cp terraform.tfvars.example terraform.tfvars
 ```bash
 # Run the automated deployment script
 cd ..
-./deploy-vault.sh
+./deploy.sh
 
 # This script will:
 # 1. Initialize and apply Terraform configuration
@@ -235,7 +235,7 @@ LocalDataPlatform/
 │       ├── ingress-nginx/      # Ingress controller
 │       ├── hive-metastore/     # Hive Metastore
 │       └── kyuubi/            # Kyuubi SQL engine
-├── deploy-vault.sh             # Automated deployment script
+├── deploy.sh             # Automated deployment script
 └── README.md                   # This file
 ```
 

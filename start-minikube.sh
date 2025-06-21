@@ -4,7 +4,7 @@
 # ----------------------------------------------------------------------------------
 # This script ONLY provisions the Minikube cluster with the recommended resources
 # and required addons. All application deployment is handled separately by
-# deploy-vault.sh (full end-to-end).  
+# deploy.sh (full end-to-end).  
 #
 # Usage:
 #   ./start-minikube.sh          # start (default)

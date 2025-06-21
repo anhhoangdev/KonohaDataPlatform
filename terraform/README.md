@@ -50,12 +50,12 @@ Before running Terraform, ensure you have:
 1. **Initialize and deploy Vault:**
    ```bash
    # Run the deployment script
-   ./deploy-vault.sh
+   ./deploy.sh
    
    # Or step by step
-   ./deploy-vault.sh init
-   ./deploy-vault.sh plan
-   ./deploy-vault.sh apply
+   ./deploy.sh init
+   ./deploy.sh plan
+   ./deploy.sh apply
    ```
 
 2. **Access Vault UI:**
@@ -365,8 +365,8 @@ kubectl port-forward -n vault-system svc/vault 8200:8200
 
 ```bash
 # Destroy and recreate
-./deploy-vault.sh cleanup
-./deploy-vault.sh deploy
+./deploy.sh cleanup
+./deploy.sh deploy
 ```
 
 #### Production Environment Recovery
@@ -435,8 +435,8 @@ kubectl patch deployment kyuubi-server -p '{"spec":{"template":{"metadata":{"ann
 
 ## Next Steps
 
-1. **Deploy Vault**: Run `./deploy-vault.sh`
-2. **Test integration**: Use `./deploy-vault.sh test`
+1. **Deploy Vault**: Run `./deploy.sh`
+2. **Test integration**: Use `./deploy.sh test`
 3. **Update Kyuubi configs**: Modify your Kustomize files
 4. **Implement secret rotation**: Set up automated rotation
 5. **Monitor and maintain**: Regular backup and monitoring

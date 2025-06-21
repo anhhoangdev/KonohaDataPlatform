@@ -190,7 +190,7 @@ main() {
     echo "Next steps:"
     echo "1. Start Minikube: minikube start --driver=docker --cpus=4 --memory=8192"
     echo "2. Clone the repository: git clone https://github.com/anhhoangdev/LocalDataPlatform.git"
-    echo "3. Run deployment: cd LocalDataPlatform && ./deploy-vault.sh"
+    echo "3. Run deployment: cd LocalDataPlatform && ./deploy.sh"
     echo ""
     
     if [[ "$OS" == "linux" ]]; then

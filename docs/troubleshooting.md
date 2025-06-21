@@ -49,6 +49,6 @@ kubectl top nodes
 kubectl top pods --all-namespaces
 
 # Clean up
-./deploy-vault.sh cleanup
+./deploy.sh cleanup
 minikube delete
 ```
