@@ -11,14 +11,14 @@ graph TD
   subgraph Namespace: airflow
     Web[Airflow Webserver]
     Scheduler[Scheduler]
-    Workers[Worker Deployment (K8sExecutor)]
+    Workers["Worker Deployment (K8sExecutor)"]
     Triggerer[Triggerer]
     Flower[Flower]
   end
   Web <---> Scheduler
   Scheduler --> Workers
   Scheduler --> Triggerer
-  Scheduler -->|metrics| Prom(exporter)
+  Scheduler -->|metrics| PrometheusExporter[Prometheus Exporter]
 ```
 
 * **Kubernetes Executor** – Each task runs in its own short-lived pod; no Celery/RabbitMQ required.
