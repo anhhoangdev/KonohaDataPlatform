@@ -20,11 +20,20 @@ spec:
         image: postgres:15
         env:
         - name: POSTGRES_DB
-          value: "airflow"
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: postgres_db
         - name: POSTGRES_USER
-          value: "airflow"
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: postgres_user
         - name: POSTGRES_PASSWORD
-          value: "airflow"
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: postgres_password
         - name: PGDATA
           value: "/var/lib/postgresql/data/pgdata"
         ports:

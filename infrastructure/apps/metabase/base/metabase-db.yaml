@@ -20,11 +20,20 @@ spec:
           imagePullPolicy: IfNotPresent
           env:
             - name: POSTGRES_DB
-              value: "metabase_db"
+              valueFrom:
+                secretKeyRef:
+                  name: metabase-db-secret
+                  key: db_name
             - name: POSTGRES_USER
-              value: "metabase"
+              valueFrom:
+                secretKeyRef:
+                  name: metabase-db-secret
+                  key: username
             - name: POSTGRES_PASSWORD
-              value: "metabase123"
+              valueFrom:
+                secretKeyRef:
+                  name: metabase-db-secret
+                  key: password
           ports:
             - containerPort: 5432
           volumeMounts:

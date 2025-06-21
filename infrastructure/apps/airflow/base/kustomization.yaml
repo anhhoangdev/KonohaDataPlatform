@@ -9,6 +9,7 @@ resources:
 - airflow-webserver.yaml
 - airflow-scheduler.yaml
 - airflow-triggerer.yaml
+- vault-secret.yaml
 
 labels:
 - pairs:

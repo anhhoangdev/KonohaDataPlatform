@@ -7,4 +7,5 @@ resources:
   - namespace.yaml
   - keycloak-deployment.yaml
   - keycloak-service.yaml
-  - keycloak-ingress.yaml 
+  - keycloak-ingress.yaml
+  - vault-secret.yaml 

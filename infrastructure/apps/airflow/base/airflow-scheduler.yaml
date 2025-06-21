@@ -46,7 +46,10 @@ spec:
         image: apache/airflow:2.8.2-python3.11
         env:
         - name: AIRFLOW__DATABASE__SQL_ALCHEMY_CONN
-          value: "postgresql+psycopg2://airflow:airflow@airflow-postgresql:5432/airflow"
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: sql_alchemy_conn
         - name: AIRFLOW__CORE__EXECUTOR
           value: "KubernetesExecutor"
         - name: AIRFLOW__KUBERNETES__NAMESPACE
@@ -56,7 +59,10 @@ spec:
         - name: AIRFLOW__KUBERNETES__WORKER_CONTAINER_TAG
           value: "2.8.2-python3.11"
         - name: AIRFLOW__CORE__FERNET_KEY
-          value: "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: fernet_key
         - name: AIRFLOW__CORE__DAGS_FOLDER
           value: "/opt/airflow/dags"
         - name: AIRFLOW__SCHEDULER__DAG_DIR_LIST_INTERVAL
@@ -154,7 +160,10 @@ data:
         - name: AIRFLOW__CORE__EXECUTOR
           value: "KubernetesExecutor"
         - name: AIRFLOW__CORE__FERNET_KEY
-          value: "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+          valueFrom:
+            secretKeyRef:
+              name: airflow-secret
+              key: fernet_key
         - name: AIRFLOW__CORE__DAGS_FOLDER
           value: "/opt/airflow/dags"
         - name: AIRFLOW__CORE__DAGBAG_IMPORT_TIMEOUT
