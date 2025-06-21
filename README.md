@@ -13,7 +13,7 @@
 > Spark-powered compute = Nine-Tails chakra. Airflow = Hokage mission board.  
 > Vault seals your secrets; Trino's Byakugan queries everything. Believe it!
 
-| Naruto Vibes | Real-World Tech | What It Does |
+| Components | Real-World Tech | What It Does |
 |--------------|----------------|--------------|
 | **🐉 Chakra Forge Engine** | Apache Kyuubi + Spark | Transforms raw data into high-energy Iceberg tables |
 | **👥 Semantic Squad** | DBT | Builds & tests data models like genin polishing jutsu |
