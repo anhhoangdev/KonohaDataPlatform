@@ -51,4 +51,4 @@ kubectl top pods --all-namespaces
 # Clean up
 ./deploy.sh cleanup
 minikube delete
-```
+``` 

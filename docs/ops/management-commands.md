@@ -47,4 +47,4 @@ cd infrastructure/apps/hive-metastore
 # Check application status
 kubectl get pods -n kyuubi
 kubectl get pods -n hive-metastore
-```
+``` 
