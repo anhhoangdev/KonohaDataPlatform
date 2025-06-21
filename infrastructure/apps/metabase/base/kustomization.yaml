@@ -7,4 +7,5 @@ resources:
   - namespace.yaml
   - metabase-db.yaml
   - metabase.yaml
-  - metabase-ingress.yaml 
+  - metabase-ingress.yaml
+  - vault-secret.yaml 
