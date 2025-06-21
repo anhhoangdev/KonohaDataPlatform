@@ -23,6 +23,9 @@ resources:
 - hive-metastore
 - kyuubi
 
+# Monitoring / dashboards
+- grafana
+
 # Orchestration layer (depends on kyuubi for DBT service)
 - airflow
 

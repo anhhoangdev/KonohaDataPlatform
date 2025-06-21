@@ -153,6 +153,14 @@ variable "kyuubi_secrets" {
         fernet_key        = "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
       }
     }
+    # 📈 Grafana admin credentials
+    grafana = {
+      path = "kyuubi/grafana"
+      data = {
+        username = "admin"
+        password = "admin123"
+      }
+    }
   }
   sensitive = true
 }

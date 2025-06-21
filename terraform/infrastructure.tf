@@ -10,6 +10,9 @@ resource "kubernetes_namespace" "vault" {
       "app.kubernetes.io/managed-by" = "terraform"
     }
   }
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 resource "kubernetes_namespace" "kyuubi" {
@@ -19,6 +22,9 @@ resource "kubernetes_namespace" "kyuubi" {
       "app.kubernetes.io/name"       = "kyuubi"
       "app.kubernetes.io/managed-by" = "terraform"
     }
+  }
+  lifecycle {
+    create_before_destroy = true
   }
 }
 
@@ -31,6 +37,9 @@ resource "kubernetes_namespace" "kafka" {
       "app.kubernetes.io/managed-by" = "terraform"
     }
   }
+  lifecycle {
+    create_before_destroy = true
+  }
 }
 
 # Source-data namespace (upstream Postgres or other systems)
@@ -41,6 +50,9 @@ resource "kubernetes_namespace" "source_data" {
       "app.kubernetes.io/name"       = "source-data"
       "app.kubernetes.io/managed-by" = "terraform"
     }
+  }
+  lifecycle {
+    create_before_destroy = true
   }
 }
 

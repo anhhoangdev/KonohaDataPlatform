@@ -120,7 +120,7 @@ if ! build_image "dbt-spark:latest" "$DOCKER_BASE_DIR/dbt-spark" "$DOCKER_BASE_D
 fi
 
 # Build Kafka Connect Full
-if ! build_image "local-kafka-connect-full:v3" "$DOCKER_BASE_DIR/kafka-connect" "$DOCKER_BASE_DIR"; then
+if ! build_image "local-kafka-connect-full:latest" "$DOCKER_BASE_DIR/kafka-connect" "$DOCKER_BASE_DIR"; then
     ((build_errors++))
 fi
 
