@@ -68,8 +68,8 @@ spec:
         # Kubernetes cleanup
         kyuubi.kubernetes.spark.cleanupTerminatedDriverPod.kind=ALL
         kyuubi.kubernetes.spark.cleanupTerminatedDriverPod.checkInterval=PT5M
-        kyuubi.kubernetes.spark.forciblyRewriteDriverPodName.enabled=true
-        kyuubi.kubernetes.spark.forciblyRewriteExecutorPodNamePrefix.enabled=true
+        kyuubi.kubernetes.spark.forciblyRewriteDriverPodName.enabled=false
+        kyuubi.kubernetes.spark.forciblyRewriteExecutorPodNamePrefix.enabled=false
 
         kyuubi.frontend.bind.host=0.0.0.0
         kyuubi.session.conf.ignore.list=spark.driver.memory,spark.driver.cores,spark.executor.memory,spark.executor.cores,spark.executor.instances,spark.executor.memoryOverhead,spark.kubernetes.driver.request.cores,spark.kubernetes.executor.request.cores,spark.kubernetes.executor.limit.cores,spark.kubernetes.executor.podTemplateFile,spark.app.name,spark.kubernetes.container.image,spark.sql.autoBroadcastJoinThreshold,spark.dynamicAllocation.minExecutors,spark.dynamicAllocation.maxExecutors,spark.dynamicAllocation.initialExecutors,spark.shuffle.service.enabled,spark.dynamicAllocation.shuffleTracking.enabled,spark.dynamicAllocation.executorAllocationRatio

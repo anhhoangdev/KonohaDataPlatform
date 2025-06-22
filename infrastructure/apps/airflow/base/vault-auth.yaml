@@ -1,0 +1,14 @@
+apiVersion: secrets.hashicorp.com/v1beta1
+kind: VaultAuth
+metadata:
+  name: vault-auth
+  namespace: airflow
+spec:
+  method: kubernetes
+  mount: kubernetes
+  kubernetes:
+    audiences:
+    - vault
+    role: airflow
+    serviceAccount: airflow-sa
+    tokenExpirationSeconds: 600 

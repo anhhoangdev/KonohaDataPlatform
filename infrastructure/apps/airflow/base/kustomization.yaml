@@ -10,6 +10,7 @@ resources:
 - airflow-scheduler.yaml
 - airflow-triggerer.yaml
 - vault-secret.yaml
+- vault-auth.yaml
 
 labels:
 - pairs:

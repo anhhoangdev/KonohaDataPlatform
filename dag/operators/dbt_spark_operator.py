@@ -113,6 +113,8 @@ class DbtSparkOperator(BaseOperator):
         num_executors: Optional[int] = None,
         config: Optional[DbtSparkConfig] = None,
         pod_override: Optional[Dict[str, Any]] = None,
+        spark_config: Optional[Dict[str, str]] = None,
+        pod_prefix: str = "dbt-spark",
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -126,6 +128,8 @@ class DbtSparkOperator(BaseOperator):
         self.num_executors = num_executors
         self.config = config or DbtSparkConfig.from_airflow_config()
         self.pod_override = pod_override or {}
+        self.spark_config = spark_config or {}
+        self.pod_prefix = pod_prefix
 
     def _build_dbt_command(self) -> List[str]:
         """Build the complete DBT command with all parameters"""
@@ -170,17 +174,28 @@ class DbtSparkOperator(BaseOperator):
 
     def _create_profiles_yaml(self, model_name: str) -> str:
         """Generate DBT profiles.yml content with Kyuubi integration and model-aware pod names"""
+        prefix = self.pod_prefix
+
+        # Base Spark settings required for proper pod naming
         spark_config_lines = [
             # Driver & executor pod names. Spark will append -driver / -exec-x automatically for executors.
-            f'spark.kubernetes.driver.pod.name: "dbt-spark-{model_name}-driver"',
-            f'spark.kubernetes.executor.podNamePrefix: "dbt-spark-{model_name}"',
-            f'spark.app.name: "dbt-spark-{model_name}"'
+            f'spark.kubernetes.driver.pod.name: "{prefix}-{model_name}-driver"',
+            f'spark.kubernetes.executor.podNamePrefix: "{prefix}-{model_name}"',
+            f'spark.app.name: "{prefix}-{model_name}"'
         ]
         if self.num_executors:
             spark_config_lines.append(f'spark.executor.instances: "{self.num_executors}"')
             spark_config_lines.append('spark.dynamicAllocation.enabled: "false"')
 
-        spark_config_str = '\n        '.join([f'"{key}": {value}' for conf in spark_config_lines for key, value in [conf.split(': ', 1)]])
+        # Append any user-supplied Spark configuration
+        for k, v in self.spark_config.items():
+            spark_config_lines.append(f'{k}: "{v}"')
+
+        spark_config_str = '\n        '.join([
+            f'"{key}": {value}'
+            for conf in spark_config_lines
+            for key, value in [conf.split(': ', 1)]
+        ])
         
         return f"""
 analytics:
@@ -348,7 +363,7 @@ echo "🔍 Spark pods should have been cleaned up automatically"
         # Prepare environment
         env_vars = self._prepare_environment(context)
         
-        pod_name = f"dbt-{model_name}-{context['ts_nodash'].lower()}"
+        pod_name = f"{self.pod_prefix}-{model_name}-{context['ts_nodash'].lower()}"
         
         logger.info(f"Executing DBT command in pod: {pod_name}")
         logger.info(f"Command: {' '.join(dbt_cmd)}")

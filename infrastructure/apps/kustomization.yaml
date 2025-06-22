@@ -8,6 +8,7 @@ resources:
 
 # Shared Vault authentication
 - vault-auth.yaml
+- vault-secrets-operator-rbac.yaml
 
 # Database and storage components (must be deployed first)
 - mariadb

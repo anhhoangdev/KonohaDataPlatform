@@ -56,6 +56,29 @@ kyuubi_secrets = {
       endpoint = "http://minio:9000"
     }
   }
+  # Airflow webserver & scheduler secrets (Postgres backend + Fernet key)
+  airflow = {
+    path = "kyuubi/airflow"
+    data = {
+      postgres_db       = "airflow"
+      postgres_user     = "airflow"
+      postgres_password = "airflow"
+      postgres_host     = "airflow-postgresql"
+      postgres_port     = "5432"
+      sql_alchemy_conn  = "postgresql+psycopg2://airflow:airflow@airflow-postgresql:5432/airflow"
+      # 32-byte base64 fernet key; generate your own for production
+      fernet_key        = "YlCImzjge_TeZc7jGvKjg8nqxCjFpZDOWl5bpFtXlDA="
+    }
+  }
+
+  # Grafana admin credentials (dev only)
+  grafana = {
+    path = "kyuubi/grafana"
+    data = {
+      username = "admin"
+      password = "admin123"
+    }
+  }
 }
 
 # FluxCD GitOps Configuration

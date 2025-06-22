@@ -28,10 +28,11 @@ MARIADB_NAMESPACE="kyuubi"
 HIVE_METASTORE_IMAGE="hive-metastore:3.1.3"
 KYUUBI_SERVER_IMAGE="kyuubi-server:1.10.0"
 SPARK_ENGINE_ICEBERG_IMAGE="spark-engine-iceberg:3.5.0-1.4.2"
+POSTGRES_IMAGE="postgres:15"
 
 # Additional custom images
 # Postgres CDC custom image (pre-loaded with sample data)
-POSTGRES_CDC_IMAGE="postgres-cdc:15"
+POSTGRES_CDC_IMAGE="local-postgres-cdc:v2"
 
 DBT_SPARK_IMAGE="dbt-spark:latest"
 KAFKA_CONNECT_FULL_IMAGE="local-kafka-connect-full:latest"
