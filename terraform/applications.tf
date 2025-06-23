@@ -117,47 +117,6 @@ resource "null_resource" "wait_for_vso_crds" {
   depends_on=[helm_release.vault_secrets_operator]
 }
 
-# Apply ALL VaultAuth resources EARLY in the deployment
-resource "kubectl_manifest" "airflow_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/airflow/base/vault-auth.yaml")
-  
-  depends_on = [
-    null_resource.wait_for_vso_crds
-  ]
-}
-
-resource "kubectl_manifest" "keycloak_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/keycloak/base/vault-auth.yaml")
-  
-  depends_on = [
-    null_resource.wait_for_vso_crds
-  ]
-}
-
-resource "kubectl_manifest" "metabase_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/metabase/base/vault-auth.yaml")
-  
-  depends_on = [
-    null_resource.wait_for_vso_crds
-  ]
-}
-
-resource "kubectl_manifest" "kafka_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/kafka/base/vault-auth.yaml")
-  
-  depends_on = [
-    null_resource.wait_for_vso_crds
-  ]
-}
-
-resource "kubectl_manifest" "trino_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/trino/base/vault-auth.yaml")
-  
-  depends_on = [
-    null_resource.wait_for_vso_crds
-  ]
-}
-
 # PHASE 3: Data Platform Services (Kafka, Hive Metastore)
 data "kustomization_build" "platform_apps" {
   for_each = local.platform_apps
@@ -177,14 +136,23 @@ resource "kubectl_manifest" "platform_apps" {
   yaml_body = each.value
   
   depends_on = [
-    null_resource.wait_for_foundation,
-    kubectl_manifest.kafka_vault_auth
+    null_resource.wait_for_foundation
+  ]
+}
+
+# Create kafka vault-auth after kafka namespace is created
+resource "kubectl_manifest" "kafka_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/kafka/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds,
+    kubectl_manifest.platform_apps  # This creates kafka namespace
   ]
 }
 
 # Wait for platform services to be ready (Kafka & Hive)
 resource "null_resource" "wait_for_platform" {
-  depends_on = [kubectl_manifest.platform_apps]
+  depends_on = [kubectl_manifest.platform_apps, kubectl_manifest.kafka_vault_auth]
 
   provisioner "local-exec" {
     command = <<EOT
@@ -215,14 +183,23 @@ resource "kubectl_manifest" "analytics_apps" {
   yaml_body = each.value
   
   depends_on = [
-    null_resource.wait_for_platform,
-    kubectl_manifest.trino_vault_auth
+    null_resource.wait_for_platform
+  ]
+}
+
+# Create trino vault-auth after trino namespace is created
+resource "kubectl_manifest" "trino_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/trino/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds,
+    kubectl_manifest.analytics_apps  # This creates trino namespace
   ]
 }
 
 # Wait for analytics services to be ready (Kyuubi & Trino)
 resource "null_resource" "wait_for_analytics" {
-  depends_on = [kubectl_manifest.analytics_apps]
+  depends_on = [kubectl_manifest.analytics_apps, kubectl_manifest.trino_vault_auth]
 
   provisioner "local-exec" {
     command = <<EOT
@@ -235,16 +212,97 @@ resource "null_resource" "wait_for_analytics" {
   }
 }
 
-# PHASE 5: Application Services (Airflow, Metabase, Grafana, Keycloak)
-data "kustomization_build" "application_apps" {
+# PHASE 5a: Create Application Namespaces ONLY (no deployments yet)
+data "kustomization_build" "application_namespaces" {
   for_each = local.application_apps
   path     = each.value
 }
 
 locals {
+  # Filter to only namespace resources from application manifests
+  application_namespace_manifests = merge([
+    for name, build in data.kustomization_build.application_namespaces : {
+      for idx, m in build.manifests : "${name}-ns-${idx}" => m
+      if contains(split("/", try(m.kind, "")), "Namespace")
+    }
+  ]...)
+}
+
+resource "kubectl_manifest" "application_namespaces" {
+  for_each  = local.application_namespace_manifests
+  yaml_body = each.value
+  
+  depends_on = [
+    null_resource.wait_for_analytics
+  ]
+}
+
+# PHASE 5b: Create vault-auth resources immediately after namespaces exist
+resource "kubectl_manifest" "airflow_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/airflow/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds,
+    kubectl_manifest.application_namespaces  # Wait for namespaces to be created
+  ]
+}
+
+resource "kubectl_manifest" "keycloak_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/keycloak/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds,
+    kubectl_manifest.application_namespaces  # Wait for namespaces to be created
+  ]
+}
+
+resource "kubectl_manifest" "metabase_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/metabase/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds,
+    kubectl_manifest.application_namespaces  # Wait for namespaces to be created
+  ]
+}
+
+# Wait for vault secrets to be ready
+resource "null_resource" "wait_for_vault_secrets" {
+  depends_on = [
+    kubectl_manifest.airflow_vault_auth,
+    kubectl_manifest.keycloak_vault_auth,
+    kubectl_manifest.metabase_vault_auth
+  ]
+
+  provisioner "local-exec" {
+    command = <<EOT
+      set -e
+      echo "Waiting for vault secrets to be created..."
+      
+      # Wait for metabase secret specifically
+      for i in $(seq 1 60); do
+        if kubectl get secret metabase-secrets -n metabase >/dev/null 2>&1; then
+          echo "metabase-secrets created successfully"
+          break
+        fi
+        if [ $i -eq 60 ]; then
+          echo "Timeout waiting for metabase-secrets"
+          exit 1
+        fi
+        echo "Waiting for metabase-secrets... ($i/60)"
+        sleep 5
+      done
+    EOT
+    interpreter = ["bash", "-c"]
+  }
+}
+
+# PHASE 5c: Application Services (now deployments with secrets available)
+locals {
+  # Filter out namespace resources, only keep non-namespace manifests
   application_manifest_map = merge([
-    for name, build in data.kustomization_build.application_apps : {
+    for name, build in data.kustomization_build.application_namespaces : {
       for idx, m in build.manifests : "${name}-${idx}" => m
+      if !contains(split("/", try(m.kind, "")), "Namespace")
     }
   ]...)
 }
@@ -254,9 +312,6 @@ resource "kubectl_manifest" "application_apps" {
   yaml_body = each.value
   
   depends_on = [
-    null_resource.wait_for_analytics,
-    kubectl_manifest.airflow_vault_auth,
-    kubectl_manifest.keycloak_vault_auth,
-    kubectl_manifest.metabase_vault_auth
+    null_resource.wait_for_vault_secrets  # Ensure secrets exist before deploying apps
   ]
 } 
