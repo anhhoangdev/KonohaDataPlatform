@@ -117,6 +117,47 @@ resource "null_resource" "wait_for_vso_crds" {
   depends_on=[helm_release.vault_secrets_operator]
 }
 
+# Apply ALL VaultAuth resources EARLY in the deployment
+resource "kubectl_manifest" "airflow_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/airflow/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds
+  ]
+}
+
+resource "kubectl_manifest" "keycloak_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/keycloak/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds
+  ]
+}
+
+resource "kubectl_manifest" "metabase_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/metabase/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds
+  ]
+}
+
+resource "kubectl_manifest" "kafka_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/kafka/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds
+  ]
+}
+
+resource "kubectl_manifest" "trino_vault_auth" {
+  yaml_body = file("${path.module}/../infrastructure/apps/trino/base/vault-auth.yaml")
+  
+  depends_on = [
+    null_resource.wait_for_vso_crds
+  ]
+}
+
 # PHASE 3: Data Platform Services (Kafka, Hive Metastore)
 data "kustomization_build" "platform_apps" {
   for_each = local.platform_apps
@@ -137,7 +178,7 @@ resource "kubectl_manifest" "platform_apps" {
   
   depends_on = [
     null_resource.wait_for_foundation,
-    null_resource.wait_for_vso_crds
+    kubectl_manifest.kafka_vault_auth
   ]
 }
 
@@ -175,7 +216,7 @@ resource "kubectl_manifest" "analytics_apps" {
   
   depends_on = [
     null_resource.wait_for_platform,
-    null_resource.wait_for_vso_crds
+    kubectl_manifest.trino_vault_auth
   ]
 }
 
@@ -213,56 +254,9 @@ resource "kubectl_manifest" "application_apps" {
   yaml_body = each.value
   
   depends_on = [
-    null_resource.wait_for_analytics
-  ]
-}
-
-# Apply VaultAuth for airflow namespace AFTER applications are created
-resource "kubectl_manifest" "airflow_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/airflow/base/vault-auth.yaml")
-  
-  depends_on = [
-    helm_release.vault_secrets_operator,
-    kubectl_manifest.application_apps
-  ]
-}
-
-# Apply VaultAuth for keycloak namespace AFTER applications are created
-resource "kubectl_manifest" "keycloak_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/keycloak/base/vault-auth.yaml")
-  
-  depends_on = [
-    helm_release.vault_secrets_operator,
-    kubectl_manifest.application_apps
-  ]
-}
-
-# Apply VaultAuth for metabase namespace AFTER applications are created
-resource "kubectl_manifest" "metabase_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/metabase/base/vault-auth.yaml")
-  
-  depends_on = [
-    helm_release.vault_secrets_operator,
-    kubectl_manifest.application_apps
-  ]
-}
-
-# Apply VaultAuth for kafka-platform namespace AFTER platform apps are created
-resource "kubectl_manifest" "kafka_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/kafka/base/vault-auth.yaml")
-  
-  depends_on = [
-    helm_release.vault_secrets_operator,
-    kubectl_manifest.platform_apps
-  ]
-}
-
-# Apply VaultAuth for trino namespace AFTER analytics apps are created
-resource "kubectl_manifest" "trino_vault_auth" {
-  yaml_body = file("${path.module}/../infrastructure/apps/trino/base/vault-auth.yaml")
-  
-  depends_on = [
-    helm_release.vault_secrets_operator,
-    kubectl_manifest.analytics_apps
+    null_resource.wait_for_analytics,
+    kubectl_manifest.airflow_vault_auth,
+    kubectl_manifest.keycloak_vault_auth,
+    kubectl_manifest.metabase_vault_auth
   ]
 } 

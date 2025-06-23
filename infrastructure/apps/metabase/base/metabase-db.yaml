@@ -22,17 +22,17 @@ spec:
             - name: POSTGRES_DB
               valueFrom:
                 secretKeyRef:
-                  name: metabase_secrets
+                  name: metabase-secrets
                   key: db_name
             - name: POSTGRES_USER
               valueFrom:
                 secretKeyRef:
-                  name: metabase_secrets
+                  name: metabase-secrets
                   key: username
             - name: POSTGRES_PASSWORD
               valueFrom:
                 secretKeyRef:
-                  name: metabase_secrets
+                  name: metabase-secrets
                   key: password
           ports:
             - containerPort: 5432

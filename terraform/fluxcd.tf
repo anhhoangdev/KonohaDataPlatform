@@ -151,13 +151,14 @@ resource "null_resource" "flux_np_adopt" {
   provisioner "local-exec" {
     command = <<EOT
       set -e
-      # If the NetworkPolicy exists without Helm labels, add them so the flux Helm release can adopt
-      for np in allow-egress allow-scraping; do
+      # Delete conflicting NetworkPolicies that can't be adopted by Helm
+      for np in allow-egress allow-scraping allow-webhooks; do
         if kubectl -n ${local.flux_namespace} get networkpolicy $np >/dev/null 2>&1; then
-          kubectl -n ${local.flux_namespace} label networkpolicy $np app.kubernetes.io/managed-by=Helm --overwrite
-          kubectl -n ${local.flux_namespace} annotate networkpolicy $np meta.helm.sh/release-name=flux meta.helm.sh/release-namespace=${local.flux_namespace} --overwrite
+          echo "Deleting conflicting NetworkPolicy: $np"
+          kubectl -n ${local.flux_namespace} delete networkpolicy $np --ignore-not-found=true
         fi
       done
+      echo "Conflicting NetworkPolicies cleaned up for Helm adoption"
     EOT
     interpreter = ["bash","-c"]
   }

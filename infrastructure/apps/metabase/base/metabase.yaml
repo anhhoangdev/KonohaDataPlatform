@@ -44,27 +44,27 @@ spec:
             - name: MB_DB_DBNAME
               valueFrom:
                 secretKeyRef:
-                  name: metabase_secrets
+                  name: metabase-secrets
                   key: db_name
             - name: MB_DB_HOST
               valueFrom:
                 secretKeyRef:
-                  name: metabase_secrets
+                  name: metabase-secrets
                   key: host
             - name: MB_DB_PORT
               valueFrom:
                 secretKeyRef:
-                  name: metabase_secrets
+                  name: metabase-secrets
                   key: port
             - name: MB_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: metabase_secrets
+                  name: metabase-secrets
                   key: username
             - name: MB_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: metabase_secrets
+                  name: metabase-secrets
                   key: password
           ports:
             - containerPort: 3000
