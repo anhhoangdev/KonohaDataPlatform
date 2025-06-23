@@ -14,6 +14,7 @@ import logging
 from typing import Any, Dict, List, Optional, Union
 from dataclasses import dataclass, field
 from datetime import datetime
+import re
 
 from airflow.models import BaseOperator
 from airflow.providers.cncf.kubernetes.operators.pod import KubernetesPodOperator
@@ -182,7 +183,8 @@ class DbtSparkOperator(BaseOperator):
 
     def _create_profiles_yaml(self, model_name: str) -> str:
         """Generate DBT profiles.yml content with Kyuubi integration and model-aware pod names"""
-        prefix = self.pod_prefix
+        # Ensure the prefix itself is Kubernetes-compliant
+        prefix = self._sanitize_k8s_name(self.pod_prefix)
 
         # Build server_side_parameters for Kyuubi/Spark configuration
         # This is the correct way to pass Spark configs through DBT-Spark thrift connections
@@ -299,14 +301,20 @@ analytics:
         
         # Build the DBT command
         dbt_cmd = self._build_dbt_command()
-        model_name = self.task_id.replace('_', '-')
+        
+        # Derive a model-aware name and sanitize to comply with K8s DNS-1123
+        model_name_raw = self.task_id
         if self.select:
-            model_name = self.select.replace('tag:', '').replace(' ', '-')
+            model_name_raw = self.select.replace('tag:', '').replace(' ', '-')
         elif hasattr(self, 'models') and self.models:
             if isinstance(self.models, list):
-                model_name = '-'.join(self.models[:2])  # Limit to 2 models for name length
+                model_name_raw = '-'.join(self.models[:2])  # Limit to 2 models for name length
             else:
-                model_name = str(self.models)
+                model_name_raw = str(self.models)
+
+        # Replace underscores early then sanitize
+        model_name_raw = model_name_raw.replace('_', '-')
+        model_name = self._sanitize_k8s_name(model_name_raw)
         
         profiles_content = self._create_profiles_yaml(model_name)
         
@@ -398,6 +406,23 @@ echo "🔍 Spark pods should have been cleaned up automatically"
         )
         
         return pod_operator.execute(context)
+
+    # ---------------------------------------------------------------------
+    # Utility helpers
+    # ---------------------------------------------------------------------
+
+    @staticmethod
+    def _sanitize_k8s_name(name: str) -> str:
+        """Return a Kubernetes DNS-1123 compliant name.
+
+        * Converts to lowercase
+        * Replaces any character not in [a-z0-9-] with '-'
+        * Collapses consecutive dashes and trims leading/trailing dashes
+        * Ensures length < 238 (Kyuubi limit 237) by truncating if needed
+        """
+        sanitized = re.sub(r'[^a-z0-9-]+', '-', name.lower())
+        sanitized = re.sub(r'-+', '-', sanitized).strip('-')
+        return sanitized[:237]
 
 
 # Specialized operators for common DBT commands
