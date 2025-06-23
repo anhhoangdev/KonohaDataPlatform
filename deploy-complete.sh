@@ -68,22 +68,6 @@ setup_dns() {
     fi
 }
 
-# Install Flux CLI and controllers if HelmRelease CRD is missing
-install_flux() {
-    echo -e "${BLUE}📦 Ensuring Flux is installed...${NC}"
-    if kubectl get crd helmreleases.helm.toolkit.fluxcd.io >/dev/null 2>&1; then
-        echo -e "${GREEN}✅ Flux already present in the cluster${NC}"
-    else
-        echo "🔧 Installing Flux CLI & controllers (helm-controller, etc.)"
-        # Install flux CLI (if not already on PATH) and bootstrap controllers
-        if ! command -v flux >/dev/null 2>&1; then
-            curl -s https://fluxcd.io/install.sh | sudo bash
-        fi
-        flux install --components-extra=image-reflector-controller,image-automation-controller
-        echo -e "${GREEN}✅ Flux installed successfully${NC}"
-    fi
-}
-
 # Phase 1: Download dependencies
 download_dependencies() {
     echo -e "${BLUE}📦 Phase 1: Downloading Dependencies${NC}"
@@ -402,7 +386,6 @@ case "${1:-deploy}" in
     "deploy")
         check_prerequisites
         setup_dns
-        install_flux
         download_dependencies
         build_images
         deploy_infrastructure

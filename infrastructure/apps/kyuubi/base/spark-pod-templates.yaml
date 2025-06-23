@@ -34,8 +34,8 @@ data:
               memory: "1Gi"
               cpu: "1"
             limits:
-              memory: "1Gi"
-              cpu: "1"
+              memory: "2Gi"
+              cpu: "2"
           env:
             - name: SPARK_DRIVER_BIND_ADDRESS
               valueFrom:
@@ -102,8 +102,8 @@ data:
               memory: "1Gi"
               cpu: "1"
             limits:
-              memory: "1Gi"
-              cpu: "1"
+              memory: "2Gi"
+              cpu: "2"
           env:
             - name: SPARK_USER
               value: "spark"
