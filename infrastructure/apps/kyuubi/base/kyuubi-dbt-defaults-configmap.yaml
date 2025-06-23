@@ -33,11 +33,23 @@ data:
     spark.kubernetes.executor.podTemplateFile=/opt/spark/pod-templates/executor-template.yaml
 
     # Default Spark resources for DBT jobs
-    spark.executor.instances=2
-    spark.executor.memory=1g
-    spark.executor.cores=1
-    spark.driver.memory=1g
-    spark.driver.cores=1
+    # spark.executor.instances=2  # REMOVED - let runtime config override
+    # spark.executor.memory=1g    # REMOVED - let runtime config override  
+    # spark.executor.cores=1      # REMOVED - let runtime config override
+    # spark.driver.memory=1g      # REMOVED - let runtime config override
+    # spark.driver.cores=1        # REMOVED - let runtime config override
+
+    # Enable dynamic allocation to allow runtime parameter overrides
+    spark.dynamicAllocation.enabled=true
+    spark.dynamicAllocation.minExecutors=1
+    spark.dynamicAllocation.maxExecutors=10
+    spark.dynamicAllocation.initialExecutors=2
+    spark.dynamicAllocation.schedulerBacklogTimeout=1s
+    spark.dynamicAllocation.sustainedSchedulerBacklogTimeout=5s
+
+    # Allow runtime configurations to override defaults
+    kyuubi.session.conf.restrict.list=
+    kyuubi.session.conf.ignore.list=
 
     # Deterministic Spark pod names for easier debugging
     kyuubi.kubernetes.spark.forciblyRewriteDriverPodName.enabled=true
