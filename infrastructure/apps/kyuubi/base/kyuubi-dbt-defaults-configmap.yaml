@@ -32,30 +32,31 @@ data:
     spark.kubernetes.driver.podTemplateFile=/opt/spark/pod-templates/driver-template.yaml
     spark.kubernetes.executor.podTemplateFile=/opt/spark/pod-templates/executor-template.yaml
 
-    # Default Spark resources for DBT jobs
-    # spark.executor.instances=2  # REMOVED - let runtime config override
-    # spark.executor.memory=1g    # REMOVED - let runtime config override  
-    # spark.executor.cores=1      # REMOVED - let runtime config override
-    # spark.driver.memory=1g      # REMOVED - let runtime config override
-    # spark.driver.cores=1        # REMOVED - let runtime config override
+    # Default Spark resources for DBT jobs (will be overridden by DBT operator)
+    spark.executor.instances=1
+    spark.executor.memory=1g    
+    spark.executor.cores=1      
+    spark.driver.memory=1g      
+    spark.driver.cores=1        
 
-    # Enable dynamic allocation to allow runtime parameter overrides
-    spark.dynamicAllocation.enabled=true
-    spark.dynamicAllocation.minExecutors=1
-    spark.dynamicAllocation.maxExecutors=10
-    spark.dynamicAllocation.initialExecutors=2
-    spark.dynamicAllocation.schedulerBacklogTimeout=1s
-    spark.dynamicAllocation.sustainedSchedulerBacklogTimeout=5s
-
-    # Allow runtime configurations to override defaults
+    # DISABLE dynamic allocation to allow explicit executor control
+    spark.dynamicAllocation.enabled=false
+    
+    # ===== CRITICAL: Allow DBT operator's pod naming and resource control =====
+    # Disable Kyuubi's forced pod name rewriting completely
+    kyuubi.kubernetes.spark.forciblyRewriteDriverPodName.enabled=false
+    kyuubi.kubernetes.spark.forciblyRewriteExecutorPodNamePrefix.enabled=false
+    
+    # Allow ALL session configurations to be overridden (including pod names and resources)
     kyuubi.session.conf.restrict.list=
     kyuubi.session.conf.ignore.list=
-
-    # Deterministic Spark pod names for easier debugging
-    kyuubi.kubernetes.spark.forciblyRewriteDriverPodName.enabled=true
-    kyuubi.kubernetes.spark.forciblyRewriteExecutorPodNamePrefix.enabled=true
-    kyuubi.kubernetes.spark.driverPodNamePrefix=kyuubi-dbt-user
-    kyuubi.kubernetes.spark.executorPodNamePrefix=kyuubi-dbt-user
+    
+    # Enable session-level Spark configuration inheritance
+    kyuubi.session.engine.initialize.sql=
+    kyuubi.session.engine.spark.initialize.sql=
+    
+    # Allow Spark configuration passthrough from connection properties
+    kyuubi.session.engine.spark.conf.isolation=false
 
     # Fix for Ivy dependency resolution issues
     spark.jars.ivy=/tmp/.ivy2

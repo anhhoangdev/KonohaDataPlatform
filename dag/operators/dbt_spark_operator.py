@@ -184,27 +184,26 @@ class DbtSparkOperator(BaseOperator):
         """Generate DBT profiles.yml content with Kyuubi integration and model-aware pod names"""
         prefix = self.pod_prefix
 
-        # Base Spark settings required for proper pod naming
-        spark_config_lines = [
-            # Driver & executor pod names. Spark will append -driver / -exec-x automatically for executors.
-            f'spark.kubernetes.driver.pod.name: "{prefix}-{model_name}-driver"',
-            f'spark.kubernetes.executor.podNamePrefix: "{prefix}-{model_name}"',
-            f'spark.app.name: "{prefix}-{model_name}"'
-        ]
-        if self.num_executors:
-            spark_config_lines.append(f'spark.executor.instances: "{self.num_executors}"')
-            spark_config_lines.append('spark.dynamicAllocation.enabled: "false"')
-
-        # Append any user-supplied Spark configuration
-        for k, v in self.spark_config.items():
-            spark_config_lines.append(f'{k}: "{v}"')
-
-        spark_config_str = '\n        '.join([
-            f'"{key}": {value}'
-            for conf in spark_config_lines
-            for key, value in [conf.split(': ', 1)]
-        ])
+        # Build server_side_parameters for Kyuubi/Spark configuration
+        # This is the correct way to pass Spark configs through DBT-Spark thrift connections
+        server_side_params = {}
         
+        # Pod naming configurations
+        server_side_params["spark.kubernetes.executor.podNamePrefix"] = f"{prefix}-{model_name}"
+        server_side_params["spark.app.name"] = f"{prefix}-{model_name}"
+        
+        # Resource configurations
+        if self.num_executors:
+            server_side_params["spark.executor.instances"] = str(self.num_executors)
+        
+        # Add any user-supplied Spark configuration
+        for k, v in self.spark_config.items():
+            server_side_params[k] = str(v)
+        
+        # Format server_side_parameters for YAML
+        server_side_yaml = "\n".join([f'        "{k}": "{v}"' for k, v in server_side_params.items()])
+        
+        # Use the correct DBT-Spark thrift connection format
         return f"""
 analytics:
   target: {self.target}
@@ -219,13 +218,9 @@ analytics:
       connect_retries: 5
       connect_timeout: 60
       retry_all: true
-      # Kyuubi session management
-      session_timeout: {self.config.kyuubi_session_timeout}
-      # Custom pod naming for Spark executors (controlled by Kyuubi pod templates)
-      # Pod names will be: dbt-spark-{{{{ dag_id }}}}-{{{{ model_name }}}}-exec-{{{{ id }}}}
-      spark_config:
-        {spark_config_str}
-      # Note: Resource configuration managed by Kyuubi pod templates (1 CPU, 1GB RAM per pod)
+      server_side_parameters:
+{server_side_yaml}
+      # Expected pod names: {prefix}-{model_name}-driver, {prefix}-{model_name}-exec-1, etc.
 """
 
     def _create_volumes_and_mounts(self) -> tuple:
@@ -339,6 +334,10 @@ cat > $DBT_PROFILES_DIR/profiles.yml << 'EOF'
 EOF
 
 echo "✅ Profiles created successfully"
+echo "🔍 Generated profiles.yml content:"
+echo "-----------------------------------"
+cat $DBT_PROFILES_DIR/profiles.yml
+echo "-----------------------------------"
 
 # Test Kyuubi connectivity using environment variables
 echo "🔌 Testing Kyuubi connectivity..."
