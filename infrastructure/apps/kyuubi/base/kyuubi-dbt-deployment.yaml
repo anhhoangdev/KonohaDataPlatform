@@ -26,89 +26,6 @@ spec:
         - containerPort: 10009
         - containerPort: 10099
         env:
-        # Kyuubi Configuration
-        - name: KYUUBI_FRONTEND_BIND_HOST
-          value: "0.0.0.0"
-        - name: KYUUBI_FRONTEND_BIND_PORT
-          value: "10009"
-        - name: KYUUBI_FRONTEND_REST_BIND_PORT
-          value: "10099"
-        - name: KYUUBI_ENGINE_TYPE
-          value: "SPARK_SQL"
-        - name: KYUUBI_ENGINE_SHARE_LEVEL
-          value: "USER"
-        - name: KYUUBI_SESSION_ENGINE_IDLE_TIMEOUT
-          value: "PT30S"
-        - name: KYUUBI_SESSION_ENGINE_CHECK_INTERVAL
-          value: "PT5S"
-        - name: KYUUBI_HA_ENABLED
-          value: "false"
-        
-        # Lightweight Spark Configuration for DBT
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_DYNAMICALLOCATION_ENABLED
-          value: "false"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_EXECUTOR_MEMORY
-          value: "1g"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_EXECUTOR_CORES
-          value: "0.5"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_DRIVER_MEMORY
-          value: "1g"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_DRIVER_CORES
-          value: "0.5"
-        
-        # Kubernetes Pod Templates Configuration
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_DRIVER_PODTEMPLATESFILE
-          value: "/opt/spark/pod-templates/driver-template.yaml"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_EXECUTOR_PODTEMPLATESFILE
-          value: "/opt/spark/pod-templates/executor-template.yaml"
-        
-        # Pod Naming Configuration for DBT
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_EXECUTOR_PODNAMEPREFIX
-          value: "dbt-spark"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_DRIVER_PODNAMEPREFIX
-          value: "dbt-spark-driver"
-        
-        # Kubernetes Configuration
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_MASTER
-          value: "k8s://https://kubernetes.default.svc:443"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_NAMESPACE
-          value: "kyuubi"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME
-          value: "kyuubi-sa"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_AUTHENTICATE_EXECUTOR_SERVICEACCOUNTNAME
-          value: "kyuubi-sa"
-        
-        # Iceberg Configuration - Direct Spark configuration
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_EXTENSIONS
-          value: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG
-          value: "org.apache.iceberg.spark.SparkCatalog"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_TYPE
-          value: "hive"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_URI
-          value: "thrift://hive-metastore:9083"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_WAREHOUSE
-          value: "s3a://warehouse/"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG
-          value: "org.apache.iceberg.spark.SparkCatalog"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_TYPE
-          value: "hive"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_URI
-          value: "thrift://hive-metastore:9083"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_WAREHOUSE
-          value: "s3a://warehouse/"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED
-          value: "org.apache.iceberg.spark.SparkCatalog"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED_TYPE
-          value: "hive"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED_URI
-          value: "thrift://hive-metastore:9083"
-        
-        # Spark Kubernetes Configuration
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_CONTAINER_IMAGE
-          value: "spark-engine-iceberg:3.5.0-1.4.2"
-        - name: SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME
-          value: "kyuubi-sa"
         - name: SPARK_EXECUTOR_MEMORY
           valueFrom:
             secretKeyRef:
@@ -126,35 +43,8 @@ spec:
               key: spark_driver_memory
         - name: SPARK_DRIVER_MEMORY_OVERHEAD
           value: "1g"
-        - name: SPARK_SUBMIT_DEPLOYMODE
-          value: "cluster"
-        - name: SPARK_EVENTLOG_DIR
-          value: "/tmp/spark-events"
-        - name: SPARK_HIVE_METASTORE_URIS
-          value: "thrift://hive-metastore:9083"
-        - name: SPARK_SQL_ADAPTIVE_ENABLED
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-spark-secret
-              key: spark_sql_adaptive_enabled
-        - name: SPARK_SQL_ADAPTIVE_COALESCEPARTITIONS_ENABLED
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-spark-secret
-              key: spark_sql_adaptive_coalescePartitions_enabled
-        - name: SPARK_SQL_CATALOG_ICEBERG
-          value: "org.apache.iceberg.spark.SparkCatalog"
-        - name: SPARK_SQL_CATALOG_ICEBERG_TYPE
-          value: "hive"
-        - name: SPARK_SQL_CATALOG_ICEBERG_URI
-          value: "thrift://hive-metastore:9083"
-        - name: SPARK_SQL_CATALOG_SHARED
-          value: "org.apache.iceberg.spark.SparkCatalog"
-        - name: SPARK_SQL_CATALOG_SHARED_TYPE
-          value: "hive"
-        - name: SPARK_SQL_CATALOG_SHARED_URI
-          value: "thrift://hive-metastore:9083"
-          
+
+        # Database credentials
         - name: DB_HOST
           valueFrom:
             secretKeyRef:
@@ -180,7 +70,8 @@ spec:
             secretKeyRef:
               name: kyuubi-database-secret
               key: mariadb_database
-        # MinIO credentials from Vault
+
+        # MinIO / S3 credentials
         - name: MINIO_ACCESS_KEY
           valueFrom:
             secretKeyRef:
@@ -191,7 +82,6 @@ spec:
             secretKeyRef:
               name: kyuubi-minio-secret
               key: secret_key
-        # S3 configuration for Spark
         - name: SPARK_HADOOP_FS_S3A_ACCESS_KEY
           valueFrom:
             secretKeyRef:
@@ -209,48 +99,6 @@ spec:
         - name: SPARK_HADOOP_FS_S3A_IMPL
           value: "org.apache.hadoop.fs.s3a.S3AFileSystem"
 
-        # Kyuubi Core Configuration
-        - name: KYUUBI_CONF_DIR
-          value: "/opt/kyuubi/conf"
-        - name: KYUUBI_LOG_DIR
-          value: "/opt/kyuubi/logs"
-        - name: KYUUBI_PID_DIR
-          value: "/tmp"
-        
-        # Lightweight Spark Configuration for DBT
-        - name: SPARK_EXECUTOR_INSTANCES
-          value: "2"
-        - name: SPARK_EXECUTOR_MEMORY
-          value: "1g"
-        - name: SPARK_EXECUTOR_CORES
-          value: "1"
-        - name: SPARK_DRIVER_MEMORY
-          value: "1g"
-        - name: SPARK_DRIVER_CORES
-          value: "1"
-        
-        # Kubernetes Integration
-        - name: SPARK_KUBERNETES_NAMESPACE
-          value: "kyuubi"
-        - name: KUBERNETES_MASTER
-          value: "https://kubernetes.default.svc"
-        - name: SPARK_KUBERNETES_DRIVER_POD_TEMPLATE_FILE
-          value: "/opt/spark/pod-templates/driver-pod-template.yaml"
-        - name: SPARK_KUBERNETES_EXECUTOR_POD_TEMPLATE_FILE
-          value: "/opt/spark/pod-templates/executor-pod-template.yaml"
-        
-        # Dynamic Pod Naming Support
-        - name: SPARK_KUBERNETES_EXECUTOR_POD_NAME_PREFIX_TEMPLATE
-          value: "dbt-spark-{dag_id}-{model_name}"
-        - name: SPARK_APP_NAME_TEMPLATE
-          value: "{dag_id}-{task_id}"
-        
-        # Session Configuration for Variable Substitution
-        - name: KYUUBI_SESSION_ENGINE_SPARK_SQL_ADAPTIVE_ENABLED
-          value: "true"
-        - name: KYUUBI_SESSION_VARIABLE_SUBSTITUTION_ENABLED
-          value: "true"
-
         resources:
           requests:
             memory: "500Mi"
@@ -267,6 +115,10 @@ spec:
         - name: spark-executor-template
           mountPath: /opt/spark/pod-templates/executor-template.yaml
           subPath: executor-template.yaml
+          readOnly: true
+        - name: kyuubi-defaults
+          mountPath: /opt/kyuubi/conf/kyuubi-defaults.conf
+          subPath: kyuubi-defaults.conf
           readOnly: true
         
         livenessProbe:
@@ -293,6 +145,9 @@ spec:
           items:
           - key: executor-template.yaml
             path: executor-template.yaml
+      - name: kyuubi-defaults
+        configMap:
+          name: kyuubi-dbt-defaults
 
 ---
 apiVersion: v1

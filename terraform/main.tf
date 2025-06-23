@@ -25,6 +25,14 @@ terraform {
       source  = "hashicorp/null"
       version = "~> 3.2"
     }
+    kubectl = {
+      source  = "gavinbunney/kubectl"
+      version = "~> 1.14"
+    }
+    kustomization = {
+      source  = "kbst/kustomization"
+      version = "~> 0.9"
+    }
   }
 }
 
@@ -44,11 +52,19 @@ provider "helm" {
 
 # Vault Provider Configuration
 provider "vault" {
-  address = var.vault_address
-  token   = var.vault_token
-  
-  # Skip TLS verification for development
-  skip_tls_verify = true
+  address = "http://127.0.0.1:8200"
+  token   = var.vault_token == "" ? "root" : var.vault_token
+}
+
+# Kubectl provider for applying rendered manifests
+provider "kubectl" {
+  config_path       = var.kubernetes_config_path
+  apply_retry_count = 5
+}
+
+# Kustomization provider to render overlays
+provider "kustomization" {
+  kubeconfig_path = var.kubernetes_config_path
 }
 
 # Data sources
@@ -62,8 +78,9 @@ data "kubernetes_service_account" "vault" {
 
 # Local variables
 locals {
-  vault_namespace   = "vault-system"
-  app_namespace     = "kyuubi"
-  flux_namespace    = "flux-system"
-  ingress_namespace = "ingress-nginx"
+  vault_namespace        = "vault-system"
+  app_namespace          = "kyuubi"
+  flux_namespace         = "flux-system"
+  ingress_namespace      = "ingress-nginx"
+  kafka_platform_namespace = var.kafka_platform_namespace
 } 

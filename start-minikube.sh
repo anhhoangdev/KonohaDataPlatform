@@ -8,6 +8,11 @@
 
 set -e  # Exit on any error
 
+# Load configuration from config.env if it exists
+if [[ -f "config.env" ]]; then
+    source config.env
+fi
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -16,11 +21,11 @@ BLUE='\033[0;34m'
 PURPLE='\033[0;35m'
 NC='\033[0m' # No Color
 
-# Configuration
-MINIKUBE_CPUS=16
-MINIKUBE_MEMORY=32768
-MINIKUBE_DISK=50g
-MINIKUBE_DRIVER=docker
+# Configuration with environment variable defaults
+MINIKUBE_CPUS=${MINIKUBE_CPUS:-16}
+MINIKUBE_MEMORY=${MINIKUBE_MEMORY:-32768}
+MINIKUBE_DISK=${MINIKUBE_DISK:-50g}
+MINIKUBE_DRIVER=${MINIKUBE_DRIVER:-docker}
 
 # Helper functions
 log_info() {
@@ -128,11 +133,12 @@ setup_minikube() {
     log_info "Enabling Minikube addons..."
     minikube addons enable ingress
     minikube addons enable metrics-server
-    minikube addons enable registry
+    # Note: Registry addon skipped - not needed for LocalDataPlatform
+    # Images are built directly in Minikube's Docker daemon via deploy.sh
     
     # Wait for addons to be ready
     log_info "Waiting for ingress controller to be ready..."
-    kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=ingress-nginx -n ingress-nginx --timeout=300s || log_warning "Ingress controller not ready yet"
+    kubectl wait --for=condition=ready pod -l app.kubernetes.io/component=controller -n ingress-nginx --timeout=60s || log_warning "Ingress controller not ready yet, but continuing..."
     
     log_success "✅ Minikube cluster is ready"
     
@@ -199,7 +205,7 @@ show_status() {
     log_info "🔗 Access Information:"
     echo "  • Cluster IP: $(minikube ip)"
     echo "  • Dashboard: minikube dashboard"
-    echo "  • Registry: $(minikube ip):5000"
+    echo "  • Docker daemon: eval \$(minikube docker-env)"
 }
 
 show_connection_info() {
@@ -213,7 +219,7 @@ show_connection_info() {
     echo ""
     echo "🐳 Docker Environment:"
     echo "  • Use Minikube Docker: eval \$(minikube docker-env)"
-    echo "  • Registry: $(minikube ip):5000"
+    echo "  • Build images directly in cluster: docker build -t <image> ."
     echo ""
     echo "📋 Useful Commands:"
     echo "  • Check cluster: kubectl cluster-info"
@@ -226,6 +232,10 @@ show_connection_info() {
     echo "  • Memory: ${MINIKUBE_MEMORY}MB"
     echo "  • Disk: ${MINIKUBE_DISK}"
     echo "  • Driver: ${MINIKUBE_DRIVER}"
+    echo ""
+    echo "🚀 Next Steps:"
+    echo "  • Deploy services: ./deploy.sh"
+    echo "  • Check deployment status: ./deploy.sh status"
 }
 
 cleanup() {
@@ -284,6 +294,11 @@ main() {
         
         "delete"|"destroy")
             cleanup
+            ;;
+        
+        "apply-infra"|"infrastructure")
+            log_warning "Terraform infrastructure application is handled by deploy.sh"
+            echo "Run './deploy.sh' to apply Terraform infrastructure"
             ;;
         
         "status"|"info")

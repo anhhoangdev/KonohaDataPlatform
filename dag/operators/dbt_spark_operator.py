@@ -60,7 +60,7 @@ class DbtSparkConfig:
     kyuubi_session_timeout: int = 300  # 5 minutes
     
     # Note: Spark resource configuration removed - managed by Kyuubi pod templates
-    # Pod templates define: Driver + 2 Executors, each with 0.5 CPU, 1GB RAM
+    # Pod templates define: Driver + 2 Executors, each with 1 CPU, 1GB RAM
     
     # Environment variables
     extra_env_vars: Dict[str, str] = field(default_factory=dict)
@@ -114,7 +114,10 @@ class DbtSparkOperator(BaseOperator):
         config: Optional[DbtSparkConfig] = None,
         pod_override: Optional[Dict[str, Any]] = None,
         spark_config: Optional[Dict[str, str]] = None,
-        pod_prefix: str = "dbt-spark",
+        # Prefix for Spark driver/executor pod names. If not provided, the operator will
+        # automatically derive a safe prefix from the Airflow task_id so that generated
+        # pod names always carry the task identifier (e.g. <task_id>-<model>-driver).
+        pod_prefix: Optional[str] = None,
         **kwargs
     ) -> None:
         super().__init__(**kwargs)
@@ -129,7 +132,12 @@ class DbtSparkOperator(BaseOperator):
         self.config = config or DbtSparkConfig.from_airflow_config()
         self.pod_override = pod_override or {}
         self.spark_config = spark_config or {}
-        self.pod_prefix = pod_prefix
+        # If no explicit prefix is supplied, fall back to the task_id so that
+        # every Spark application we launch carries a direct reference to the
+        # originating Airflow task. Replace underscores with dashes because
+        # Kubernetes pod names must match the DNS label standard.
+        default_prefix = (self.task_id if hasattr(self, "task_id") else "")
+        self.pod_prefix = (pod_prefix or default_prefix).replace("_", "-")
 
     def _build_dbt_command(self) -> List[str]:
         """Build the complete DBT command with all parameters"""
@@ -217,7 +225,7 @@ analytics:
       # Pod names will be: dbt-spark-{{{{ dag_id }}}}-{{{{ model_name }}}}-exec-{{{{ id }}}}
       spark_config:
         {spark_config_str}
-      # Note: Resource configuration managed by Kyuubi pod templates (0.5 CPU, 1GB RAM per pod)
+      # Note: Resource configuration managed by Kyuubi pod templates (1 CPU, 1GB RAM per pod)
 """
 
     def _create_volumes_and_mounts(self) -> tuple:
@@ -320,7 +328,7 @@ echo "Command: {' '.join(dbt_cmd)}"
 echo "Target: $DBT_TARGET"
 echo "Project Dir: $DBT_PROJECT_DIR"
 echo "Kyuubi Host: $KYUUBI_HOST:$KYUUBI_PORT"
-echo "Spark Resources: Managed by Kyuubi pod templates (0.5 CPU, 1GB RAM per pod)"
+echo "Spark Resources: Managed by Kyuubi pod templates (1 CPU, 1GB RAM per pod)"
 echo "================================================"
 
 # Setup profiles with Kyuubi configuration

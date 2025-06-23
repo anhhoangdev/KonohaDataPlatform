@@ -5,7 +5,9 @@ namespace: keycloak
 
 resources:
   - namespace.yaml
+  - rbac.yaml
   - keycloak-deployment.yaml
   - keycloak-service.yaml
   - keycloak-ingress.yaml
   - vault-secret.yaml 
+  - vault-auth.yaml

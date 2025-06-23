@@ -14,6 +14,7 @@ spec:
       labels:
         app: grafana
     spec:
+      serviceAccountName: grafana-sa
       containers:
       - name: grafana
         image: grafana/grafana:10.4.0
@@ -29,6 +30,31 @@ spec:
             secretKeyRef:
               name: grafana-secret
               key: password
+        # OIDC Configuration for Keycloak
+        - name: GF_AUTH_GENERIC_OAUTH_ENABLED
+          value: "true"
+        - name: GF_AUTH_GENERIC_OAUTH_NAME
+          value: "Keycloak"
+        - name: GF_AUTH_GENERIC_OAUTH_ALLOW_SIGN_UP
+          value: "true"
+        - name: GF_AUTH_GENERIC_OAUTH_CLIENT_ID
+          value: "grafana-client"
+        - name: GF_AUTH_GENERIC_OAUTH_CLIENT_SECRET
+          value: "grafana-client-secret"
+        - name: GF_AUTH_GENERIC_OAUTH_SCOPES
+          value: "openid profile email"
+        - name: GF_AUTH_GENERIC_OAUTH_AUTH_URL
+          value: "http://keycloak.local/realms/master/protocol/openid-connect/auth"
+        - name: GF_AUTH_GENERIC_OAUTH_TOKEN_URL
+          value: "http://keycloak.local/realms/master/protocol/openid-connect/token"
+        - name: GF_AUTH_GENERIC_OAUTH_API_URL
+          value: "http://keycloak.local/realms/master/protocol/openid-connect/userinfo"
+        - name: GF_AUTH_GENERIC_OAUTH_ROLE_ATTRIBUTE_PATH
+          value: "contains(roles[*], 'admin') && 'Admin' || contains(roles[*], 'editor') && 'Editor' || 'Viewer'"
+        - name: GF_AUTH_GENERIC_OAUTH_AUTO_LOGIN
+          value: "false"
+        - name: GF_AUTH_SIGNOUT_REDIRECT_URL
+          value: "http://keycloak.local/realms/master/protocol/openid-connect/logout?redirect_uri=http://grafana.local"
         ports:
         - containerPort: 3000
           name: http

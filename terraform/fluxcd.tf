@@ -21,9 +21,14 @@ resource "helm_release" "flux" {
   depends_on = [
     kubernetes_namespace.vault,
     kubernetes_namespace.kyuubi,
+    kubernetes_namespace.kafka_platform,
     kubernetes_service_account.vault,
-    kubernetes_service_account.kyuubi
+    kubernetes_service_account.kyuubi,
+    null_resource.flux_np_adopt
   ]
+
+  force_update = true
+  skip_crds    = true
 }
 
 # Wait for FluxCD to be ready and CRDs to be available
@@ -139,4 +144,21 @@ resource "time_sleep" "wait_for_gitops" {
   count = var.enable_fluxcd ? 1 : 0
   depends_on = [null_resource.apply_gitops_config]
   create_duration = "180s"  # Wait for applications to deploy
+}
+
+# Patch existing NetworkPolicy so Helm can adopt it
+resource "null_resource" "flux_np_adopt" {
+  provisioner "local-exec" {
+    command = <<EOT
+      set -e
+      # If the NetworkPolicy exists without Helm labels, add them so the flux Helm release can adopt
+      for np in allow-egress allow-scraping; do
+        if kubectl -n ${local.flux_namespace} get networkpolicy $np >/dev/null 2>&1; then
+          kubectl -n ${local.flux_namespace} label networkpolicy $np app.kubernetes.io/managed-by=Helm --overwrite
+          kubectl -n ${local.flux_namespace} annotate networkpolicy $np meta.helm.sh/release-name=flux meta.helm.sh/release-namespace=${local.flux_namespace} --overwrite
+        fi
+      done
+    EOT
+    interpreter = ["bash","-c"]
+  }
 } 

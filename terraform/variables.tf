@@ -24,6 +24,12 @@ variable "kyuubi_namespace" {
   default     = "kyuubi"
 }
 
+variable "kafka_platform_namespace" {
+  description = "Kubernetes namespace for Kafka platform (brokers, connect, etc.)"
+  type        = string
+  default     = "kafka-platform"
+}
+
 variable "vault_dev_mode" {
   description = "Enable Vault development mode"
   type        = bool

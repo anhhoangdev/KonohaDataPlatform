@@ -2,11 +2,13 @@ apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
 metadata:
   name: vault-auth
-  namespace: grafana
+  namespace: metabase
 spec:
   method: kubernetes
   mount: kubernetes
   kubernetes:
-    role: grafana
-    serviceAccount: grafana-sa
+    audiences:
+    - vault
+    role: metabase
+    serviceAccount: metabase-sa
     tokenExpirationSeconds: 600 

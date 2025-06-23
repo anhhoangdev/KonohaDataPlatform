@@ -63,7 +63,7 @@ with DAG(
     # 1. Infrastructure Validation
     validate_dbt_connection = DbtSparkDebugOperator(
         task_id='validate_dbt_connection',
-        target="dev"
+        target="dev",
     )
 
     install_dbt_deps = DbtSparkDepsOperator(
@@ -74,7 +74,8 @@ with DAG(
     # 2. Data Seeding (example, can be conditional)
     seed_reference_data = DbtSparkSeedOperator(
         task_id='seed_reference_data',
-        target="dev"
+        target="dev",
+        num_executors=1
     )
 
     # 3. Data Transformation - Staging Models (run individually)
@@ -89,7 +90,7 @@ with DAG(
         task_id='run_stg_orders',
         models='stg_orders',
         target="dev",
-        num_executors=2
+        num_executors=3
     )
 
     # 4. Data Transformation - Marts Layer

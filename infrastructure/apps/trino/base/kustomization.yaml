@@ -5,9 +5,12 @@ namespace: trino
 
 resources:
   - namespace.yaml
+  - rbac.yaml
   - trino-config-coordinator.yaml
   - trino-config-worker.yaml
   - trino-coordinator.yaml
   - trino-worker.yaml
   - trino-service.yaml
-  - trino-ingress.yaml 
+  - trino-ingress.yaml
+  - vault-auth.yaml
+  - vault-secret.yaml 

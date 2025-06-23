@@ -1,12 +1,11 @@
 apiVersion: secrets.hashicorp.com/v1beta1
 kind: VaultAuth
 metadata:
-  name: vault-auth
-  namespace: grafana
+  name: trino-auth
+  namespace: trino
 spec:
   method: kubernetes
   mount: kubernetes
   kubernetes:
-    role: grafana
-    serviceAccount: grafana-sa
-    tokenExpirationSeconds: 600 
+    role: trino
+    serviceAccount: trino-sa 

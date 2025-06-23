@@ -17,6 +17,7 @@ spec:
         app: trino
         role: coordinator
     spec:
+      serviceAccountName: trino-sa
       containers:
         - name: trino
           image: trinodb/trino:438
@@ -26,7 +27,7 @@ spec:
           volumeMounts:
             - name: config
               mountPath: /etc/trino
-            - name: trino-jks
+            - name: trino-secret
               mountPath: /etc/trino/ssl
               readOnly: true
           env:
@@ -51,6 +52,6 @@ spec:
                 path: catalog/iceberg.properties
               - key: log.properties
                 path: log.properties
-        - name: trino-jks
+        - name: trino-secret
           secret:
-            secretName: trino-jks 
+            secretName: trino-secret 

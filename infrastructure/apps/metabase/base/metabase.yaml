@@ -36,9 +36,6 @@ spec:
           image: metabase/metabase:v0.50.27
           imagePullPolicy: IfNotPresent
           volumeMounts:
-            - name: trino-keystore
-              mountPath: /etc/metabase/ssl
-              readOnly: true
             - name: plugins
               mountPath: /plugins
           env:
@@ -47,34 +44,31 @@ spec:
             - name: MB_DB_DBNAME
               valueFrom:
                 secretKeyRef:
-                  name: metabase-db-secret
+                  name: metabase_secrets
                   key: db_name
             - name: MB_DB_HOST
               valueFrom:
                 secretKeyRef:
-                  name: metabase-db-secret
+                  name: metabase_secrets
                   key: host
             - name: MB_DB_PORT
               valueFrom:
                 secretKeyRef:
-                  name: metabase-db-secret
+                  name: metabase_secrets
                   key: port
             - name: MB_DB_USER
               valueFrom:
                 secretKeyRef:
-                  name: metabase-db-secret
+                  name: metabase_secrets
                   key: username
             - name: MB_DB_PASS
               valueFrom:
                 secretKeyRef:
-                  name: metabase-db-secret
+                  name: metabase_secrets
                   key: password
           ports:
             - containerPort: 3000
       volumes:
-        - name: trino-keystore
-          secret:
-            secretName: trino-keystore
         - name: plugins
           emptyDir: {}
 ---

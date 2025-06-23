@@ -55,7 +55,6 @@ required_files=(
     "aws-java-sdk-bundle-1.12.500.jar"
     "iceberg-aws-bundle-1.5.0.jar"
     "kafka-schema-registry-client-7.5.0.jar"
-    "kafka-connect-avro-converter-7.5.0.jar"
 )
 
 log_info "Checking for required download files..."
@@ -125,7 +124,7 @@ if ! build_image "local-kafka-connect-full:latest" "$DOCKER_BASE_DIR/kafka-conne
 fi
 
 # Build Postgres CDC
-if ! build_image "postgres-cdc:15" "$DOCKER_BASE_DIR/postgres" "$DOCKER_BASE_DIR"; then
+if ! build_image "local-postgres-cdc:v2" "$DOCKER_BASE_DIR/postgres" "$DOCKER_BASE_DIR"; then
     ((build_errors++))
 fi
 
@@ -135,7 +134,7 @@ if [ $build_errors -eq 0 ]; then
     log_success "🎉 All Docker images built successfully!"
     echo ""
     log_info "📋 Built images:"
-    docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(hive-metastore|kyuubi-server|spark-engine-iceberg|dbt-spark|local-kafka-connect-full|postgres-cdc)" || true
+    docker images --format "table {{.Repository}}:{{.Tag}}\t{{.Size}}\t{{.CreatedAt}}" | grep -E "(hive-metastore|kyuubi-server|spark-engine-iceberg|dbt-spark|local-kafka-connect-full|local-postgres-cdc)" || true
 else
     log_error "❌ $build_errors image(s) failed to build"
     exit 1

@@ -22,29 +22,40 @@ data:
         workload-type: spark-driver
     spec:
       serviceAccountName: kyuubi-sa
+      securityContext:
+        runAsUser: 185
+        runAsGroup: 185
+        fsGroup: 185
       containers:
         - name: spark-kubernetes-driver
           image: spark-engine-iceberg:3.5.0-1.4.2
           resources:
             requests:
               memory: "1Gi"
-              cpu: "500m"
+              cpu: "1"
             limits:
               memory: "1Gi"
-              cpu: "500m"
+              cpu: "1"
           env:
-            - name: SPARK_CONF_DIR
-              value: "/opt/spark/conf"
             - name: SPARK_DRIVER_BIND_ADDRESS
               valueFrom:
                 fieldRef:
                   fieldPath: status.podIP
+            - name: SPARK_USER
+              value: "spark"
+            - name: HOME
+              value: "/tmp"
+            - name: PYSPARK_PYTHON
+              value: "/opt/bitnami/python/bin/python"
           volumeMounts:
-            - name: spark-conf
-              mountPath: /opt/spark/conf
-              readOnly: true
+            - name: spark-tmp
+              mountPath: /tmp
+            - name: spark-work-dir
+              mountPath: /opt/spark/work-dir
       volumes:
-        - name: spark-conf
+        - name: spark-tmp
+          emptyDir: {}
+        - name: spark-work-dir
           emptyDir: {}
       restartPolicy: Never
       nodeSelector:
@@ -79,25 +90,36 @@ data:
         workload-type: spark-executor
     spec:
       serviceAccountName: kyuubi-sa
+      securityContext:
+        runAsUser: 185
+        runAsGroup: 185
+        fsGroup: 185
       containers:
         - name: spark-kubernetes-executor
           image: spark-engine-iceberg:3.5.0-1.4.2
           resources:
             requests:
               memory: "1Gi"
-              cpu: "500m"
+              cpu: "1"
             limits:
               memory: "1Gi"
-              cpu: "500m"
+              cpu: "1"
           env:
-            - name: SPARK_CONF_DIR
-              value: "/opt/spark/conf"
+            - name: SPARK_USER
+              value: "spark"
+            - name: HOME
+              value: "/tmp"
+            - name: PYSPARK_PYTHON
+              value: "/opt/bitnami/python/bin/python"
           volumeMounts:
-            - name: spark-conf
-              mountPath: /opt/spark/conf
-              readOnly: true
+            - name: spark-tmp
+              mountPath: /tmp
+            - name: spark-work-dir
+              mountPath: /opt/spark/work-dir
       volumes:
-        - name: spark-conf
+        - name: spark-tmp
+          emptyDir: {}
+        - name: spark-work-dir
           emptyDir: {}
       restartPolicy: Never
       nodeSelector:

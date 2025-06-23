@@ -27,7 +27,7 @@ spec:
               key: sql_alchemy_conn
         - name: AIRFLOW__CORE__EXECUTOR
           value: "KubernetesExecutor"
-        - name: AIRFLOW__KUBERNETES__NAMESPACE
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
           value: "airflow"
         - name: AIRFLOW__CORE__FERNET_KEY
           valueFrom:
@@ -51,7 +51,7 @@ spec:
               key: sql_alchemy_conn
         - name: AIRFLOW__CORE__EXECUTOR
           value: "KubernetesExecutor"
-        - name: AIRFLOW__KUBERNETES__NAMESPACE
+        - name: AIRFLOW__KUBERNETES_EXECUTOR__NAMESPACE
           value: "airflow"
         - name: AIRFLOW__KUBERNETES__WORKER_CONTAINER_REPOSITORY
           value: "apache/airflow"

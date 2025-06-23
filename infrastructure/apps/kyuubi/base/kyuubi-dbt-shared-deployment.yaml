@@ -14,202 +14,52 @@ spec:
     metadata:
       labels:
         app: kyuubi-dbt-shared
-      annotations:
-        karpenter.sh/do-not-disrupt: "true"
     spec:
       serviceAccountName: kyuubi-sa
       containers:
       - name: kyuubi-server
-        image: kyuubi-server:1.10.0
-        imagePullPolicy: Never
+        image: kyuubi-server:1.10.0  # Essential: image.repository & tag
+        imagePullPolicy: IfNotPresent
         ports:
-        - containerPort: 10009
-        - containerPort: 10099
+        - name: thrift
+          containerPort: 10009
         env:
-        # Kyuubi Configuration
-        - name: KYUUBI_FRONTEND_BIND_HOST
-          value: "0.0.0.0"
-        - name: KYUUBI_FRONTEND_BIND_PORT
-          value: "10009"
-        - name: KYUUBI_FRONTEND_REST_BIND_PORT
-          value: "10099"
-        - name: KYUUBI_ENGINE_TYPE
-          value: "SPARK_SQL"
-        - name: KYUUBI_ENGINE_SHARE_LEVEL
-          value: "SERVER"
-        - name: KYUUBI_SESSION_ENGINE_IDLE_TIMEOUT
-          value: "PT15M"
-        - name: KYUUBI_ENGINE_USER_ISOLATED_SPARK_SESSION_IDLE_TIMEOUT
-          value: "PT10M"
-        - name: KYUUBI_SESSION_ENGINE_CHECK_INTERVAL
-          value: "PT5S"
-        - name: KYUUBI_HA_ENABLED
-          value: "false"
-        
-        # Iceberg Configuration - Direct Spark configuration
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_EXTENSIONS
-          value: "org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG
-          value: "org.apache.iceberg.spark.SparkCatalog"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_TYPE
-          value: "hive"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_URI
-          value: "thrift://hive-metastore:9083"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SPARK_CATALOG_WAREHOUSE
-          value: "s3a://warehouse/"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG
-          value: "org.apache.iceberg.spark.SparkCatalog"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_TYPE
-          value: "hive"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_URI
-          value: "thrift://hive-metastore:9083"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_ICEBERG_WAREHOUSE
-          value: "s3a://warehouse/"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED
-          value: "org.apache.iceberg.spark.SparkCatalog"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED_TYPE
-          value: "hive"
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_SQL_CATALOG_SHARED_URI
-          value: "thrift://hive-metastore:9083"
-        
-        # Spark Kubernetes Configuration
-        - name: KYUUBI_ENGINE_SPARK_CONF_SPARK_KUBERNETES_CONTAINER_IMAGE
-          value: "spark-engine-iceberg:3.5.0-1.4.2"
-        - name: SPARK_KUBERNETES_AUTHENTICATE_DRIVER_SERVICEACCOUNTNAME
-          value: "kyuubi-sa"
-        - name: SPARK_EXECUTOR_INSTANCES
-          value: "1"
-        - name: SPARK_EXECUTOR_MEMORY
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-spark-secret
-              key: spark_executor_memory
-        - name: SPARK_EXECUTOR_CORES
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-spark-secret
-              key: spark_executor_cores
-        - name: SPARK_DRIVER_MEMORY
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-spark-secret
-              key: spark_driver_memory
-        - name: SPARK_DRIVER_MEMORY_OVERHEAD
-          value: "1g"
-        - name: SPARK_DYNAMICALLOCATION_ENABLED
-          value: "true"
-        - name: SPARK_DYNAMICALLOCATION_MAXEXECUTORS
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-spark-secret
-              key: spark_max_executors
-        - name: SPARK_DYNAMICALLOCATION_MINEXECUTORS
-          value: "0"
-        - name: SPARK_DYNAMICALLOCATION_EXECUTORIDLETIMEOUT
-          value: "60s"
-        - name: SPARK_DYNAMICALLOCATION_CACHEDEXECUTORIDLETIMEOUT
-          value: "1800s"
-        - name: SPARK_EVENTLOG_DIR
-          value: "/tmp/spark-events"
-        - name: SPARK_HIVE_METASTORE_URIS
-          value: "thrift://hive-metastore:9083"
-        - name: SPARK_SQL_ADAPTIVE_ENABLED
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-spark-secret
-              key: spark_sql_adaptive_enabled
-        - name: SPARK_SQL_ADAPTIVE_COALESCEPARTITIONS_ENABLED
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-spark-secret
-              key: spark_sql_adaptive_coalescePartitions_enabled
-
-        - name: DB_HOST
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-database-secret
-              key: mariadb_host
-        - name: DB_PORT
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-database-secret
-              key: mariadb_port
-        - name: DB_USER
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-database-secret
-              key: mariadb_user
-        - name: DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-database-secret
-              key: mariadb_password
-        - name: DB_NAME
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-database-secret
-              key: mariadb_database
-        # MinIO credentials from Vault
-        - name: MINIO_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-minio-secret
-              key: access_key
-        - name: MINIO_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-minio-secret
-              key: secret_key
-        # S3 configuration for Spark
-        - name: SPARK_HADOOP_FS_S3A_ACCESS_KEY
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-minio-secret
-              key: access_key
-        - name: SPARK_HADOOP_FS_S3A_SECRET_KEY
-          valueFrom:
-            secretKeyRef:
-              name: kyuubi-minio-secret
-              key: secret_key
-        - name: SPARK_HADOOP_FS_S3A_ENDPOINT
-          value: "http://minio:9000"
-        - name: SPARK_HADOOP_FS_S3A_PATH_STYLE_ACCESS
-          value: "true"
-        - name: SPARK_HADOOP_FS_S3A_IMPL
-          value: "org.apache.hadoop.fs.s3a.S3AFileSystem"
+        # All static configuration now lives in the mounted kyuubi-defaults.conf.
 
         resources:
           requests:
-            memory: "500Mi"
             cpu: "200m"
+            memory: "256Mi"
           limits:
-            memory: "1Gi"
             cpu: "500m"
-        livenessProbe:
-          tcpSocket:
-            port: 10009
-          initialDelaySeconds: 60
-          periodSeconds: 30
-        readinessProbe:
-          tcpSocket:
-            port: 10009
-          initialDelaySeconds: 30
-          periodSeconds: 10
+            memory: "512Mi"
 
----
-apiVersion: v1
-kind: Service
-metadata:
-  name: kyuubi-dbt-shared
-  namespace: kyuubi
-spec:
-  selector:
-    app: kyuubi-dbt-shared
-  ports:
-  - name: thrift-binary
-    port: 10009
-    targetPort: 10009
-  - name: rest-api
-    port: 10099
-    targetPort: 10099
-  type: ClusterIP 
+        volumeMounts:
+          - name: kyuubi-defaults
+            mountPath: /opt/kyuubi/conf/kyuubi-defaults.conf
+            subPath: kyuubi-defaults.conf
+            readOnly: true
+          - name: spark-driver-template
+            mountPath: /opt/spark/pod-templates/driver-template.yaml
+            subPath: driver-template.yaml
+            readOnly: true
+          - name: spark-executor-template
+            mountPath: /opt/spark/pod-templates/executor-template.yaml
+            subPath: executor-template.yaml
+            readOnly: true
+      volumes:
+        - name: kyuubi-defaults
+          configMap:
+            name: kyuubi-dbt-shared-defaults
+        - name: spark-driver-template
+          configMap:
+            name: spark-driver-template
+            items:
+              - key: driver-template.yaml
+                path: driver-template.yaml
+        - name: spark-executor-template
+          configMap:
+            name: spark-executor-template
+            items:
+              - key: executor-template.yaml
+                path: executor-template.yaml 

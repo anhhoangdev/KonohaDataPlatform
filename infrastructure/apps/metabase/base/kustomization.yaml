@@ -5,6 +5,7 @@ namespace: metabase
 
 resources:
   - namespace.yaml
+  - service-account.yaml
   - metabase-db.yaml
   - metabase.yaml
   - metabase-ingress.yaml

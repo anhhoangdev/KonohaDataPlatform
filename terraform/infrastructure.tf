@@ -28,12 +28,14 @@ resource "kubernetes_namespace" "kyuubi" {
   }
 }
 
-# Kafka namespace (for brokers, connect, akhq)
-resource "kubernetes_namespace" "kafka" {
+# Kafka platform namespace (for brokers, connect, akhq)
+resource "kubernetes_namespace" "kafka_platform" {
   metadata {
-    name = "kafka"
+    name = var.kafka_platform_namespace
     labels = {
       "app.kubernetes.io/name"       = "kafka"
+      "app.kubernetes.io/component"  = "streaming"
+      "app.kubernetes.io/part-of"    = "data-platform"
       "app.kubernetes.io/managed-by" = "terraform"
     }
   }

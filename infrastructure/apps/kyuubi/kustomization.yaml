@@ -8,5 +8,7 @@ resources:
 - base/spark-pod-templates.yaml
 - base/kyuubi-dbt-deployment.yaml
 - base/kyuubi-dbt-shared-deployment.yaml
+- base/kyuubi-dbt-shared-defaults-configmap.yaml
+- base/kyuubi-dbt-defaults-configmap.yaml
 
 namespace: kyuubi 

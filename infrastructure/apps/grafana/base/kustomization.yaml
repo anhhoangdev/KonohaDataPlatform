@@ -5,6 +5,7 @@ namespace: grafana
 
 resources:
   - namespace.yaml
+  - rbac.yaml
   - grafana-deployment.yaml
   - grafana-service.yaml
   - vault-secret.yaml

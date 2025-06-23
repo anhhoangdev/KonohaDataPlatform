@@ -7,8 +7,9 @@ resources:
 - schema-registry.yaml
 - kafka-connect.yaml
 - kafka-connect-configmap.yaml
-- iceberg-rest-catalog.yaml
 - akhq.yaml
+- vault-auth.yaml
+- vault-secret.yaml
 
 labels:
   - pairs:

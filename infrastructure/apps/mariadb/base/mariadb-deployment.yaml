@@ -18,13 +18,14 @@ spec:
     spec:
       containers:
       - name: mariadb
-        image: mariadb:10.11
+        image: docker.io/library/mariadb:10.11
+        imagePullPolicy: IfNotPresent
         env:
         - name: MYSQL_ROOT_PASSWORD
           valueFrom:
             secretKeyRef:
               name: mariadb-vault-secret
-              key: mariadb_password
+              key: mariadb_root_password
         - name: MYSQL_DATABASE
           valueFrom:
             secretKeyRef:

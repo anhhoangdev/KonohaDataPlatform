@@ -1,0 +1,80 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kyuubi-dbt-shared-defaults
+  namespace: kyuubi
+  labels:
+    app: kyuubi-dbt-shared
+    component: kyuubi-config
+    part-of: data-platform
+    managed-by: kustomize
+data:
+  kyuubi-defaults.conf: |-
+    # ================= Kyuubi Server DEFAULTS =================
+    # Core behaviour
+    kyuubi.engine.share.level=SERVER
+    kyuubi.session.engine.idle.timeout=PT15M
+    kyuubi.engine.user.isolated.spark.session.idle.timeout=PT10M
+
+    # Front-end listeners (bind to all interfaces inside container)
+    kyuubi.frontend.thrift.binary.bind.host=0.0.0.0
+    kyuubi.frontend.rest.bind.host=0.0.0.0
+
+    # ================= Spark on Kubernetes defaults =================
+    spark.master=k8s://https://kubernetes.default:443
+    spark.submit.deployMode=cluster
+    spark.kubernetes.namespace=kyuubi
+    spark.kubernetes.container.image=spark-engine-iceberg:3.5.0-1.4.2
+    spark.kubernetes.authenticate.driver.serviceAccountName=kyuubi-sa
+    spark.kubernetes.file.upload.path=/tmp
+
+    # Pod template files for driver & executor
+    spark.kubernetes.driver.podTemplateFile=/opt/spark/pod-templates/driver-template.yaml
+    spark.kubernetes.executor.podTemplateFile=/opt/spark/pod-templates/executor-template.yaml
+
+    # Listener port and enable flags
+    kyuubi.frontend.thrift.binary.bind.port=10009
+    kyuubi.frontend.thrift.binary.enabled=true
+
+    # Default Spark resources for shared SQL queries (DataGrip, etc.)
+    spark.executor.instances=3
+    spark.executor.memory=2g
+    spark.executor.cores=2
+    spark.driver.memory=2g
+    spark.driver.cores=1
+
+    # Deterministic Spark pod names for easier debugging
+    kyuubi.kubernetes.spark.forciblyRewriteDriverPodName.enabled=true
+    kyuubi.kubernetes.spark.forciblyRewriteExecutorPodNamePrefix.enabled=true
+    kyuubi.kubernetes.spark.driverPodNamePrefix=kyuubi-dbt-shared
+    kyuubi.kubernetes.spark.executorPodNamePrefix=kyuubi-dbt-shared
+
+    # Fix for Ivy dependency resolution issues
+    spark.jars.ivy=/tmp/.ivy2
+    spark.sql.execution.arrow.pyspark.enabled=false
+    spark.kubernetes.driver.deleteOnTermination=true
+    spark.kubernetes.executor.deleteOnTermination=true
+    spark.kubernetes.local.dirs.tmpfs=false
+
+    # Iceberg extensions & catalogs
+    spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
+    spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog
+    spark.sql.catalog.spark_catalog.type=hive
+    spark.sql.catalog.spark_catalog.uri=thrift://hive-metastore:9083
+    spark.sql.catalog.spark_catalog.warehouse=s3a://warehouse/
+    spark.sql.catalog.iceberg=org.apache.iceberg.spark.SparkCatalog
+    spark.sql.catalog.iceberg.type=hive
+    spark.sql.catalog.iceberg.uri=thrift://hive-metastore:9083
+    spark.sql.catalog.iceberg.warehouse=s3a://warehouse/
+
+    # S3 / MinIO config (public values; credentials via env vars)
+    spark.hadoop.fs.s3a.endpoint=http://minio:9000
+    spark.hadoop.fs.s3a.path.style.access=true
+    spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+
+    # Hive metastore & event logs
+    spark.hive.metastore.uris=thrift://hive-metastore:9083
+    spark.eventLog.dir=/tmp/spark-events
+
+    # Engine jar path inside image
+    kyuubi.session.engine.spark.main.resource=local:///opt/kyuubi/externals/engines/spark/kyuubi-spark-sql-engine.jar
