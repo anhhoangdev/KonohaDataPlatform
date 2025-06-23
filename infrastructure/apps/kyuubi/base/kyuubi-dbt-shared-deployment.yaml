@@ -25,6 +25,18 @@ spec:
           containerPort: 10009
         env:
         # All static configuration now lives in the mounted kyuubi-defaults.conf.
+        
+        # MinIO / S3 credentials
+        - name: SPARK_HADOOP_FS_S3A_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-minio-secret
+              key: access_key
+        - name: SPARK_HADOOP_FS_S3A_SECRET_KEY
+          valueFrom:
+            secretKeyRef:
+              name: kyuubi-minio-secret
+              key: secret_key
 
         resources:
           requests:

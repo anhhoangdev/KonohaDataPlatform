@@ -61,6 +61,12 @@ data:
     spark.kubernetes.file.upload.path=/tmp
     spark.local.dir=/tmp/spark-local
 
+    # Pass S3 credentials to Spark driver and executor pods
+    spark.kubernetes.driverEnv.SPARK_HADOOP_FS_S3A_ACCESS_KEY=${SPARK_HADOOP_FS_S3A_ACCESS_KEY}
+    spark.kubernetes.driverEnv.SPARK_HADOOP_FS_S3A_SECRET_KEY=${SPARK_HADOOP_FS_S3A_SECRET_KEY}
+    spark.kubernetes.executorEnv.SPARK_HADOOP_FS_S3A_ACCESS_KEY=${SPARK_HADOOP_FS_S3A_ACCESS_KEY}
+    spark.kubernetes.executorEnv.SPARK_HADOOP_FS_S3A_SECRET_KEY=${SPARK_HADOOP_FS_S3A_SECRET_KEY}
+
     # Iceberg extensions & catalogs
     spark.sql.extensions=org.apache.iceberg.spark.extensions.IcebergSparkSessionExtensions
     spark.sql.catalog.spark_catalog=org.apache.iceberg.spark.SparkCatalog
@@ -77,6 +83,9 @@ data:
     spark.hadoop.fs.s3a.endpoint=http://minio:9000
     spark.hadoop.fs.s3a.path.style.access=true
     spark.hadoop.fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
+    # S3 credentials - these will be populated from environment variables
+    spark.hadoop.fs.s3a.access.key=${SPARK_HADOOP_FS_S3A_ACCESS_KEY}
+    spark.hadoop.fs.s3a.secret.key=${SPARK_HADOOP_FS_S3A_SECRET_KEY}
 
     # Hive metastore & event logs
     spark.hive.metastore.uris=thrift://hive-metastore:9083
