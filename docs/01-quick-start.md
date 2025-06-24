@@ -1,69 +1,40 @@
 # 🚀 Quick Start – End-to-End Deployment
 
-Spin up the entire Konoha Data Platform on **Minikube** with six simple steps.
+Spin up the entire Konoha Data Platform on **Minikube** with just **three** commands.
 
 > Estimated time: **15 minutes** on a laptop with 4 CPUs & 8 GiB RAM.
 
 ---
 
-## 1. Clone & Prepare Repository
+## 1. Spin-up the Cluster
 ```bash
-# Clone
-git clone https://github.com/anhhoangdev/LocalDataPlatform.git
-cd LocalDataPlatform
-
-# Make helper scripts executable
-chmod +x deploy.sh
-chmod +x infrastructure/apps/*/run.sh 2>/dev/null || true
+./start-minikube.sh start          # creates/starts Minikube with addons
 ```
 
-## 2. Start Minikube
+## 2. Build Images & Deploy Core Infra
 ```bash
-minikube start --driver=docker --cpus=4 --memory=8192 --disk-size=20g
-
-# Enable essential addons
-minikube addons enable ingress
-minikube addons enable metrics-server
-kubectl cluster-info
+./deploy-complete.sh              # builds images, loads them, deploys Vault (+ port-forward)
 ```
+When it finishes you'll have:
+• All custom Docker images already inside the cluster
+• Namespaces created, Vault dev mode running and port-forwarded to http://localhost:8200 (token `root`)
 
-## 3. Configure Terraform Variables
+## 3. Let Terraform Do the Magic
 ```bash
 cd terraform
-cp terraform.tfvars.example terraform.tfvars
-# (Optional) tweak values in terraform.tfvars
+terraform init
+terraform apply -auto-approve      # ☕ wait ~10 min – full stack appears
 ```
 
-## 4. Run the One-Liner Deploy Script
-```bash
-cd ..
-./deploy.sh
-```
-This script will:
-1. **Terraform** – provision Vault & FluxCD
-2. **Configure Vault** – dev mode, root token `root`
-3. **Bootstrap FluxCD** – GitOps pipeline
-4. **Create Secrets** – for Kyuubi, MinIO, MariaDB
+Vault, MinIO, Hive Metastore, Iceberg, Kyuubi, Airflow, Trino, Grafana, etc. are up and wired together.
 
-## 5. Verify Everything Is Up
-```bash
-kubectl get pods --all-namespaces
-kubectl get pods -n vault-system
-kubectl get pods -n flux-system
-```
+<details>
+<summary>Need the old step-by-step flow with the helper script? (click)</summary>
 
-## 6. Access Core Services
-| Service | URL / Command |
-|---------|---------------|
-| Vault UI | `kubectl port-forward -n vault-system svc/vault 8200:8200` → http://localhost:8200 |
-| Kyuubi JDBC | `kubectl port-forward -n kyuubi svc/kyuubi-dbt-shared 10009:10009` |
-| MinIO Console | `kubectl port-forward -n minio svc/minio 9001:9001` → http://localhost:9001 |
+The original six-step guide (clone repo, `./deploy.sh`, etc.) is still available <a href="https://github.com/anhhoangdev/LocalDataPlatform/blob/main/docs/legacy/quick-start-v1.md">here</a> for power-users who prefer granular control.
 
-Add entries to `/etc/hosts` for pretty URLs:
-```bash
-echo "$(minikube ip) vault.local kyuubi.local" | sudo tee -a /etc/hosts
-```
+</details>
 
 ---
 
-Need help? See [ops/troubleshooting](ops/troubleshooting.md) or ping the Discord channel. 
+Need help? See [ops/troubleshooting](ops/troubleshooting.md) or open an issue. 
