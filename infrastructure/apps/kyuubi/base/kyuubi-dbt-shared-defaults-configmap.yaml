@@ -76,10 +76,10 @@ data:
     spark.hadoop.fs.s3a.secret.key=${SPARK_HADOOP_FS_S3A_SECRET_KEY}
 
     # Pass S3 credentials to Spark driver and executor pods
-    spark.kubernetes.driverEnv.SPARK_HADOOP_FS_S3A_ACCESS_KEY=${SPARK_HADOOP_FS_S3A_ACCESS_KEY}
-    spark.kubernetes.driverEnv.SPARK_HADOOP_FS_S3A_SECRET_KEY=${SPARK_HADOOP_FS_S3A_SECRET_KEY}
-    spark.kubernetes.executorEnv.SPARK_HADOOP_FS_S3A_ACCESS_KEY=${SPARK_HADOOP_FS_S3A_ACCESS_KEY}
-    spark.kubernetes.executorEnv.SPARK_HADOOP_FS_S3A_SECRET_KEY=${SPARK_HADOOP_FS_S3A_SECRET_KEY}
+    spark.kubernetes.driverEnv.AWS_ACCESS_KEY_ID=${SPARK_HADOOP_FS_S3A_ACCESS_KEY}
+    spark.kubernetes.driverEnv.AWS_SECRET_ACCESS_KEY=${SPARK_HADOOP_FS_S3A_SECRET_KEY}
+    spark.kubernetes.executorEnv.AWS_ACCESS_KEY_ID=${SPARK_HADOOP_FS_S3A_ACCESS_KEY}
+    spark.kubernetes.executorEnv.AWS_SECRET_ACCESS_KEY=${SPARK_HADOOP_FS_S3A_SECRET_KEY}
 
     # Hive metastore & event logs
     spark.hive.metastore.uris=thrift://hive-metastore:9083
